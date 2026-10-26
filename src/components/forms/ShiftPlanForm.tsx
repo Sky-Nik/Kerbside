@@ -5,6 +5,7 @@ import { Button, colors, styles } from '@/components/ui';
 import { list, save, softDelete } from '@/db/repo';
 import type { ShiftPlan } from '@/db/types';
 import { isTime } from '@/lib/input';
+import { rescheduleReminders } from '@/lib/reminders';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -26,7 +27,10 @@ export function ShiftPlanForm({ submitLabel, onSaved }: { submitLabel: string; o
     });
   }, [db]);
 
-  const update = (key: string, patch: Partial<Draft>) => setRows((r) => r.map((x) => (x.key === key ? { ...x, ...patch } : x)));
+  const update = (key: string, patch: Partial<Draft>) => {
+    setRows((r) => r.map((x) => (x.key === key ? { ...x, ...patch } : x)));
+    setError('');
+  };
 
   async function submit() {
     const bad = rows.find((r) => !isTime(r.start) || !isTime(r.end) || r.start >= r.end);
@@ -38,6 +42,7 @@ export function ShiftPlanForm({ submitLabel, onSaved }: { submitLabel: string; o
     const kept = new Set(rows.map((r) => r.id));
     for (const id of existing) if (!kept.has(id)) await softDelete(db, 'shift_plan', id);
     for (const r of rows) await save(db, 'shift_plan', { id: r.id, weekday: r.weekday, start_time: r.start, end_time: r.end });
+    await rescheduleReminders(db);
     onSaved();
   }
 

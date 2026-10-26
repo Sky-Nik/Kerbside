@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -22,6 +22,22 @@ export const colors = {
   primary: '#111827',
   danger: '#b91c1c',
 };
+
+// Field errors that disappear as soon as the user edits that field.
+export function useFormErrors() {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const bind =
+    <T,>(key: string, set: (v: T) => void) =>
+    (v: T) => {
+      set(v);
+      setErrors((e) => {
+        if (!(key in e)) return e;
+        const { [key]: _, ...rest } = e;
+        return rest;
+      });
+    };
+  return { errors, setErrors, bind };
+}
 
 export function Screen({ children }: { children: ReactNode }) {
   return (

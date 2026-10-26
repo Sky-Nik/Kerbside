@@ -36,7 +36,30 @@ export function businessUse(trips: Trip[], period: Period): BusinessUse {
   return { businessKm, totalKm, pct: totalKm > 0 ? businessKm / totalKm : 0 };
 }
 
-export type OdometerGap = { afterTripId: string; fromKm: number; toKm: number };
+export type TripCheck = { errors: string[]; warnings: string[] };
+
+export const LONG_TRIP_KM = 1500;
+
+// Checks a new or edited trip against the vehicle's other trips (excluding itself).
+export function checkTrip(start: number, end: number | null, others: Trip[]): TripCheck {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  if (end !== null && end < start) errors.push('The end odometer is lower than the start.');
+  if (end !== null && end - start > LONG_TRIP_KM) warnings.push(`That is over ${LONG_TRIP_KM.toLocaleString('en-AU')} km in one trip.`);
+
+  // Odometer ranges must not overlap. An in-progress trip counts as its first km.
+  const s = start;
+  const e = Math.max(end ?? start, start + 1);
+  const clash = completed(others).find((o) => s < o.endOdometer && e > o.startOdometer);
+  if (clash) {
+    errors.push(
+      `Overlaps a trip already logged from ${clash.startOdometer.toLocaleString('en-AU')} to ${clash.endOdometer.toLocaleString('en-AU')} km.`,
+    );
+  }
+  return { errors, warnings };
+}
+
+export type OdometerGap ={ afterTripId: string; fromKm: number; toKm: number };
 
 // Km driven between two logged trips that nobody recorded.
 export function odometerGaps(trips: Trip[]): OdometerGap[] {

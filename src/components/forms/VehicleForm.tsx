@@ -1,6 +1,6 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
-import { Button, Choice, Field } from '@/components/ui';
+import { Button, Choice, Field, useFormErrors } from '@/components/ui';
 import { save } from '@/db/repo';
 import type { OwnershipType, Vehicle } from '@/db/types';
 import { formatAuDate, parseAuDate, parseDollars, parseKm, todayISO } from '@/lib/input';
@@ -29,7 +29,7 @@ export function VehicleForm({
   const [activeFrom, setActiveFrom] = useState(formatAuDate(vehicle?.active_from ?? todayISO()));
   const [purchaseDate, setPurchaseDate] = useState(vehicle?.purchase_date ? formatAuDate(vehicle.purchase_date) : '');
   const [price, setPrice] = useState(vehicle?.purchase_price_cents ? (vehicle.purchase_price_cents / 100).toFixed(2) : '');
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { errors, setErrors, bind } = useFormErrors();
 
   const bought = ownership === 'owned' || ownership === 'financed';
 
@@ -62,13 +62,13 @@ export function VehicleForm({
 
   return (
     <>
-      <Field label="Car name" value={name} onChangeText={setName} placeholder="Corolla" error={errors.name} />
+      <Field label="Car name" value={name} onChangeText={bind('name', setName)} placeholder="Corolla" error={errors.name} />
       <Field label="Rego (optional)" value={rego} onChangeText={setRego} autoCapitalize="characters" />
       <Choice label="How do you have this car?" value={ownership} onChange={setOwnership} options={OWNERSHIP} />
       <Field
         label={vehicle ? 'Odometer when added (km)' : 'Current odometer (km)'}
         value={odometer}
-        onChangeText={setOdometer}
+        onChangeText={bind('odometer', setOdometer)}
         keyboardType="number-pad"
         error={errors.odometer}
         hint="Your first logbook reading starts from here."
@@ -76,7 +76,7 @@ export function VehicleForm({
       <Field
         label="Using this car from"
         value={activeFrom}
-        onChangeText={setActiveFrom}
+        onChangeText={bind('activeFrom', setActiveFrom)}
         placeholder="DD/MM/YYYY"
         keyboardType="numbers-and-punctuation"
         error={errors.activeFrom}
@@ -86,7 +86,7 @@ export function VehicleForm({
           <Field
             label="Purchase date (optional)"
             value={purchaseDate}
-            onChangeText={setPurchaseDate}
+            onChangeText={bind('purchaseDate', setPurchaseDate)}
             placeholder="DD/MM/YYYY"
             keyboardType="numbers-and-punctuation"
             error={errors.purchaseDate}
@@ -94,7 +94,7 @@ export function VehicleForm({
           <Field
             label="Purchase price incl. GST (optional)"
             value={price}
-            onChangeText={setPrice}
+            onChangeText={bind('price', setPrice)}
             keyboardType="decimal-pad"
             placeholder="$"
             error={errors.price}

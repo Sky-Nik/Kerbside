@@ -24,6 +24,27 @@ export type Vehicle = {
   active_to: string | null;
 };
 
+export type TripRow = {
+  id: string;
+  vehicle_id: string;
+  purpose: 'uber_x' | 'uber_eats' | 'personal';
+  date: string;
+  start_at: string;
+  start_odometer: number;
+  end_at: string | null;
+  end_odometer: number | null;
+  note: string | null;
+};
+
+export type LogbookPeriod = {
+  id: string;
+  vehicle_id: string;
+  start_date: string;
+  end_date: string;
+  business_pct: number | null;
+  updated_at: string;
+};
+
 export type ShiftPlan = {
   id: string;
   weekday: number; // 1 = Monday ... 7 = Sunday

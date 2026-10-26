@@ -1,6 +1,6 @@
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
-import { Button, Choice, Field, Toggle } from '@/components/ui';
+import { Button, Choice, Field, Toggle, useFormErrors } from '@/components/ui';
 import { useProfile } from '@/db/ProfileContext';
 import { save } from '@/db/repo';
 import { formatAbn, formatAuDate, isValidAbn, parseAuDate } from '@/lib/input';
@@ -15,7 +15,7 @@ export function ProfileForm({ submitLabel, onSaved }: { submitLabel: string; onS
   const [gst, setGst] = useState(profile ? profile.gst_registered_from !== null : false);
   const [gstFrom, setGstFrom] = useState(profile?.gst_registered_from ? formatAuDate(profile.gst_registered_from) : '');
   const [basFrequency, setBasFrequency] = useState(profile?.bas_frequency ?? 'quarterly');
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const { errors, setErrors, bind } = useFormErrors();
 
   async function submit() {
     const e: Record<string, string> = {};
@@ -40,12 +40,12 @@ export function ProfileForm({ submitLabel, onSaved }: { submitLabel: string; onS
 
   return (
     <>
-      <Field label="Legal name" value={legalName} onChangeText={setLegalName} error={errors.legalName} autoComplete="name" />
+      <Field label="Legal name" value={legalName} onChangeText={bind('legalName', setLegalName)} error={errors.legalName} autoComplete="name" />
       <Field label="Trading name (optional)" value={tradingName} onChangeText={setTradingName} />
       <Field
         label="ABN"
         value={abn}
-        onChangeText={setAbn}
+        onChangeText={bind('abn', setAbn)}
         onBlur={() => isValidAbn(abn) && setAbn(formatAbn(abn))}
         keyboardType="number-pad"
         placeholder="12 345 678 901"
@@ -58,7 +58,7 @@ export function ProfileForm({ submitLabel, onSaved }: { submitLabel: string; onS
           <Field
             label="GST registered from"
             value={gstFrom}
-            onChangeText={setGstFrom}
+            onChangeText={bind('gstFrom', setGstFrom)}
             placeholder="DD/MM/YYYY"
             keyboardType="numbers-and-punctuation"
             error={errors.gstFrom}

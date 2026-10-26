@@ -1,7 +1,9 @@
 import { Stack } from 'expo-router';
-import { SQLiteProvider } from 'expo-sqlite';
+import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
+import { useEffect } from 'react';
 import { ProfileProvider, useProfile } from '@/db/ProfileContext';
 import { migrate } from '@/db/schema';
+import { rescheduleReminders } from '@/lib/reminders';
 
 export default function RootLayout() {
   return (
@@ -14,9 +16,15 @@ export default function RootLayout() {
 }
 
 function Routes() {
+  const db = useSQLiteContext();
   const { profile, loaded } = useProfile();
-  if (!loaded) return null;
   const onboarded = profile?.onboarded === 1;
+
+  useEffect(() => {
+    if (onboarded) rescheduleReminders(db);
+  }, [db, onboarded]);
+
+  if (!loaded) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
