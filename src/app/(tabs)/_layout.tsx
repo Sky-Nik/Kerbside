@@ -9,7 +9,7 @@ export default function TabLayout() {
       <Tabs.Screen name="money" options={{ title: 'Money' }} />
       <Tabs.Screen name="reports" options={{ title: 'Reports' }} />
       <Tabs.Screen name="documents" options={{ title: 'Documents' }} />
-      <Tabs.Screen name="settings" options={{ title: 'Settings' }} />
+      <Tabs.Screen name="settings" options={{ title: 'Settings', headerShown: false }} />
     </Tabs>
   );
 }
