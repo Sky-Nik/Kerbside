@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { HELP, type HelpKey } from "@/lib/help";
 
 /**
@@ -13,6 +13,17 @@ export function Tip({ k, text, align = "center", className = "" }: {
   const id = useId();
   const ref = useRef<HTMLSpanElement>(null);
   const body = text ?? (k ? HELP[k] : "");
+  const tipRef = useRef<HTMLSpanElement>(null);
+
+  // Keep the tooltip on screen: nudge it sideways if it would spill past either edge.
+  useLayoutEffect(() => {
+    const el = tipRef.current;
+    if (!open || !el) return;
+    el.style.translate = "0px";
+    const r = el.getBoundingClientRect(), pad = 8, vw = document.documentElement.clientWidth;
+    const dx = r.left < pad ? pad - r.left : r.right > vw - pad ? vw - pad - r.right : 0;
+    el.style.translate = `${dx}px`;
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -41,7 +52,7 @@ export function Tip({ k, text, align = "center", className = "" }: {
         i
       </span>
       {open && (
-        <span id={id} role="tooltip"
+        <span id={id} ref={tipRef} role="tooltip"
           className={`absolute top-full z-50 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl bg-ink px-3 py-2 text-left text-[13px] leading-snug font-normal tracking-normal text-white normal-case shadow-xl ring-1 ring-white/15 ${pos}`}>
           {body}
         </span>
