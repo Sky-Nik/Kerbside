@@ -33,7 +33,10 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
   const gst = rows.reduce((s, r) => s + r.gst, 0);
 
   // Same platform with overlapping dates would double count.
-  const overlaps = overlappingIds(rows);
+  // Compare against every entry whose dates touch this quarter, including ones that start in an earlier quarter.
+  const { data: touching } = await supabase.from("income_entries").select("id,start_date,end_date,platform")
+    .lte("start_date", qEnd).gte("end_date", qStart);
+  const overlaps = overlappingIds(touching ?? []);
 
   const today = new Date().toISOString().slice(0, 10);
   const defaultFrom = today >= qStart && today <= qEnd ? mondayOf(today) : qStart;
