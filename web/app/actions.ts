@@ -28,7 +28,7 @@ export async function signOut() {
   redirect("/login");
 }
 
-/** Saves one week or month of earnings for a platform. Saving the same period again replaces it. */
+/** Adds earnings for a platform to a week or month. Each save is a new entry (several per week are fine). */
 export async function saveIncome(f: FormData) {
   const { supabase, user } = await requireUser();
   const platform = str(f, "platform");
@@ -40,9 +40,7 @@ export async function saveIncome(f: FormData) {
   const lines: Record<string, number> = {};
   for (const l of INCOME_LINES) if (str(f, `line:${l}`) !== "") lines[l] = money(f, `line:${l}`);
   if (!Object.keys(lines).length) throw new Error("Enter at least one amount");
-  check((await supabase.from("income_entries").upsert(
-    { user_id: user.id, period, start_date, platform, lines, fees: {} },
-    { onConflict: "user_id,period,start_date,platform" })).error);
+  check((await supabase.from("income_entries").insert({ user_id: user.id, period, start_date, platform, lines, fees: {} })).error);
   done();
 }
 

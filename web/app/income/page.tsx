@@ -26,6 +26,7 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
   const rows = entries.map((e) => ({ ...e, ...platformMonth(e.platform, e.lines, {}, year.gst_registered) }));
   const total = (k: string) => entries.reduce((s, e) => s + (Number(e.lines[k]) || 0), 0);
   const sales = rows.reduce((s, r) => s + r.sales, 0);
+  const groups = [...Map.groupBy(rows, (r) => `${r.period}|${r.start_date}`)];
   const gst = rows.reduce((s, r) => s + r.gst, 0);
 
   // Same platform entered both weekly and monthly for one month would double count.
@@ -41,14 +42,20 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
         <QuarterTabs path="/income" q={q} />
       </PageHead>
 
-      <div className="rise rise-1 mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
-        {[...INCOME_LINES.map((l) => [l, total(l)] as const), ["Total incl GST", sales] as const, ["GST (1A)", gst] as const]
-          .map(([k, v], i) => (
-            <div key={k} className={`py-4 ${i === 3 ? "card-ink !py-4" : "card-wash"} ${i === 4 ? "col-span-2 lg:col-span-1" : ""}`}>
-              <p className={`text-xs ${i === 3 ? "text-white/60" : "text-mute"}`}>{k}</p>
-              <p className="mt-1 text-xl font-bold tabular-nums">{aud(v)}</p>
+      <div className="rise rise-1 mb-6 grid gap-3 lg:grid-cols-[1.3fr_1fr]">
+        <div className="card-ink">
+          <p className="text-sm text-white/60">Total earnings this quarter (incl GST)</p>
+          <p className="display mt-1 tabular-nums">{aud(sales)}</p>
+          <p className="mt-2 text-sm text-white/60">GST included (1A) {aud(gst)}</p>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {INCOME_LINES.map((l) => (
+            <div key={l} className="card-wash flex flex-col justify-end py-4">
+              <p className="text-xs text-mute">{l}</p>
+              <p className="mt-1 text-lg font-bold tabular-nums">{aud(total(l))}</p>
             </div>
           ))}
+        </div>
       </div>
 
       <section className="card rise rise-2 mb-8">
@@ -75,31 +82,41 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
             <p className="muted">Add each week (or month) from your Uber and DiDi driver apps.</p>
           </div>
         ) : (
-          <ul className="divide-y divide-wash-2">
-            {rows.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-4 sm:flex-nowrap">
-                <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold ${r.platform === "Uber" ? "bg-black text-white" : "bg-wash-2"}`}>
-                  {r.platform === "Uber" ? "U" : "D"}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium">
-                    {r.platform} · {r.period === "week" ? `Week ${auDate(r.start_date)} – ${auDate(addDays(r.start_date, 6))}` : monthName(r.start_date)}
-                    {r.period === "month" && <span className="pill ml-2 bg-wash-2 text-ink-2">Monthly</span>}
-                  </span>
-                  <span className="block truncate text-[13px] text-mute">
-                    {INCOME_LINES.map((l) => `${l} ${aud(Number(r.lines[l]) || 0)}`).join(" · ")}
-                  </span>
-                </span>
-                <span className="text-right">
-                  <span className="block font-bold tabular-nums">{aud(r.sales)}</span>
-                  <span className="block text-[11px] text-mute">GST {aud(r.gst)}</span>
-                </span>
-                <form action={deleteRow}><input type="hidden" name="table" value="income_entries" /><input type="hidden" name="id" value={r.id} /><button className="btn-danger">Delete</button></form>
-              </li>
-            ))}
-          </ul>
+          <div className="space-y-4">
+            {groups.map(([key, items]) => {
+              const g = items[0];
+              return (
+                <div key={key} className="card !p-0">
+                  <div className="flex items-baseline justify-between gap-3 border-b border-wash-2 px-5 py-3">
+                    <h3 className="font-bold">
+                      {g.period === "week" ? `Week ${auDate(g.start_date)} – ${auDate(addDays(g.start_date, 6))}` : monthName(g.start_date)}
+                      {g.period === "month" && <span className="pill ml-2 bg-wash-2 text-ink-2">Monthly</span>}
+                    </h3>
+                    <span className="text-lg font-bold tabular-nums">{aud(items.reduce((s, r) => s + r.sales, 0))}</span>
+                  </div>
+                  <ul className="divide-y divide-wash-2 px-5">
+                    {items.map((r) => (
+                      <li key={r.id} className="flex items-center gap-x-4 py-3">
+                        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold ${r.platform === "Uber" ? "bg-black text-white" : "bg-wash-2"}`}>
+                          {r.platform === "Uber" ? "U" : "D"}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-medium">{r.platform}</span>
+                          <span className="block truncate text-[13px] text-mute">
+                            {INCOME_LINES.filter((l) => Number(r.lines[l])).map((l) => `${l} ${aud(Number(r.lines[l]))}`).join(" · ") || "No amounts"}
+                          </span>
+                        </span>
+                        <span className="font-bold tabular-nums">{aud(r.sales)}</span>
+                        <form action={deleteRow}><input type="hidden" name="table" value="income_entries" /><input type="hidden" name="id" value={r.id} /><button className="btn-danger">Delete</button></form>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
         )}
-        <p className="muted mt-4">A week counts in the quarter its Monday falls in. To change an entry, save the same week or month again.</p>
+        <p className="muted mt-4">A week counts in the quarter its Monday falls in. To fix an entry, delete it and add it again.</p>
       </section>
     </main>
   );

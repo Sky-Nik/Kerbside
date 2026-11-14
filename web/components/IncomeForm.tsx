@@ -18,7 +18,8 @@ export function IncomeForm({ min, max, defaultWeek }: { min: string; max: string
         setMsg(null);
         try {
           await saveIncome(f);
-          setMsg("Saved");
+          const added = INCOME_LINES.reduce((s, l) => s + (Number(f.get(`line:${l}`)) || 0), 0);
+          setMsg(`Added $${added.toFixed(2)}`);
           // keep the date (handy for entering the next platform), clear the amounts
           form.current?.querySelectorAll<HTMLInputElement>("input[name^='line:']").forEach((i) => (i.value = ""));
         } catch (e) {
@@ -63,9 +64,9 @@ export function IncomeForm({ min, max, defaultWeek }: { min: string; max: string
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <button className="btn"><Icon name="plus" size={18} />Save {platform} {period === "week" ? "week" : "month"}</button>
-        {msg && <span className={`text-sm ${msg === "Saved" ? "text-pos" : "text-neg"}`}>{msg}</span>}
-        <span className="muted">Copy from the earnings screen in the {platform} driver app. Saving the same {period} again replaces it.</span>
+        <button className="btn"><Icon name="plus" size={18} />Add {platform} earnings</button>
+        {msg && <span className={`text-sm ${msg.startsWith("Added") ? "text-pos" : "text-neg"}`}>{msg}</span>}
+        <span className="muted">Copy from the {platform} driver app. Each entry adds to the total, so you can log a week in one go or day by day.</span>
       </div>
     </form>
   );
