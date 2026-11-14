@@ -49,7 +49,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
     supabase.from("income_entries").select("start_date,platform,lines"),
     supabase.from("expenses").select("date,amount"),
   ]);
-  const pastYears = history.filter((h) => h.source !== "Kerbside (this year)").map((h) => ({ fy: h.fy, business: h.business, source: h.source }));
+  // Past years: everything the return counted as earned income (some years platforms were lodged as wages).
+  const pastYears = history.filter((h) => h.source !== "Kerbside (this year)").map((h) => ({ fy: h.fy, business: h.business + h.wages, source: h.source }));
 
   return (
     <main className="space-y-6 pt-8">

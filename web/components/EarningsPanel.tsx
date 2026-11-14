@@ -76,7 +76,9 @@ export function EarningsPanel({ view, at, today, entries, expenses, pastYears, f
 
       <p className="display relative mt-3 tabular-nums">{aud(cur.amount)}</p>
       <p className="relative mt-1 text-sm text-white/60">
-        {cur.from ? `Business income from your ${cur.from.toLowerCase()} (ex GST)` : change == null ? "Net fare + promotions + tips" :
+        {cur.from ? `Income from your ${cur.from.toLowerCase()} (business + wages, ex GST)`
+          : view === "year" && sel.key === now.key ? "So far this financial year · net fare + promotions + tips"
+          : change == null ? "Net fare + promotions + tips" :
           <><span className={change >= 0 ? "text-[#7be3a8]" : "text-[#ff9c8f]"}>{change >= 0 ? "▲" : "▼"} {Math.abs(Math.round(change * 100))}%</span> vs previous {view}</>}
       </p>
 
