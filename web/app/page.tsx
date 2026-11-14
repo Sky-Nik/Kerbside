@@ -76,13 +76,13 @@ export default async function Dashboard() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {[0, 1, 2, 3].map((i) => (
-            <a key={i} href={`/reports/bas?q=${i}&fy=${fy}`} className={i === cq ? "btn btn-sm" : "btn-secondary btn-sm"}>
-              <Icon name="upload" size={14} className="rotate-180" />BAS Q{i + 1}
-            </a>
+            <Link key={i} href={`/reports/view?kind=bas&q=${i}&fy=${fy}`} className={i === cq ? "btn btn-sm" : "btn-secondary btn-sm"}>
+              <Icon name="bas" size={14} />BAS Q{i + 1}
+            </Link>
           ))}
-          <a href={`/reports/tax?fy=${fy}`} className="btn-secondary btn-sm !bg-[#fff4d9] ring-1 ring-warn">
-            <Icon name="upload" size={14} className="rotate-180" />Tax summary {fy}
-          </a>
+          <Link href={`/reports/view?kind=tax&fy=${fy}`} className="btn-secondary btn-sm !bg-[#fff4d9] ring-1 ring-warn">
+            <Icon name="tax" size={14} />Tax summary {fy}
+          </Link>
         </div>
       </section>
 
