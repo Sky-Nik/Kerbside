@@ -101,7 +101,7 @@ export const OTHER_LINES = [...new Set(CATEGORIES.filter((c) => c.use !== "car")
 
 // ATO rates. ponytail: 2026-27 copies 2025-26 until the ATO publishes it; users can override per year in Settings.
 export const ATO_RATES: Record<string, { carLimit: number; cpk: number }> = {
-  "2026-27": { carLimit: 69674, cpk: 0.88 },
+  "2026-27": { carLimit: 69674, cpk: 0.91 }, // cpk: ATO 91c (89c + 2c one-off uplift). Car limit: not yet published, 2025-26 figure.
   "2025-26": { carLimit: 69674, cpk: 0.88 },
   "2024-25": { carLimit: 69674, cpk: 0.88 },
   "2023-24": { carLimit: 68108, cpk: 0.85 },
@@ -159,7 +159,10 @@ export const gstOf = (amount: number, registered: boolean, gstFree = false) =>
 export function platformMonth(platform: string, lines: Record<string, unknown>, fees: Record<string, unknown>,
   registered: boolean) {
   const def = PLATFORMS[platform];
-  const sales = round2(Object.values(lines).reduce<number>((s, v) => s + num(v), 0));
+  // ATO: GST is on the full fare the passenger pays. "Net fare" is after the platform's service fee,
+  // so the full fare = net fare + service fee.
+  const grossUp = "Net fare" in lines ? num(fees["Service fees"]) : 0;
+  const sales = round2(Object.values(lines).reduce<number>((s, v) => s + num(v), 0) + grossUp);
   const derived: Partial<Record<FeeType, number>> = {};
   if (def) for (const [line, fee] of Object.entries(def.passThrough)) derived[fee] = num(derived[fee]) + num(lines[line]);
   const feeRows = FEE_TYPES.map((type) => {
@@ -291,12 +294,30 @@ export function summarise(y: YearSettings, d: YearData) {
   const income = round2(sum(q.netIncome) + num(y.gov_payments) + num(y.other_business_income));
   const totalExpenses = round2(carClaim + feesTotal + otherTotal);
 
+  // ATO Business and professional items schedule 2026, P8 (non-primary production column). All amounts ex GST.
+  // Source: ato.gov.au BPI instructions 2026 – Income P8 / Expenses P8; supplementary return Q15.
+  const cpk = y.car_method === "cpk";
+  const carLease = cpk ? 0 : sum(byLine["Car - Lease & hire"] ?? zero4());
+  const p8 = {
+    incomeH: round2(num(y.gov_payments)), // Assessable government industry payments (non-primary)
+    incomeJ: round2(sum(q.netIncome) + num(y.other_business_income)), // Other business income – incl. ride-sourcing
+    F: feesTotal, // Contractor, sub-contractor and commission expenses (platform service fees)
+    J: carLease, // Lease expenses
+    M: cpk ? 0 : depreciation, // Depreciation expenses
+    N: cpk ? cpkTotal : round2(logbookTotal - depreciation - interest - carLease), // Motor vehicle expenses
+    nType: cpk ? "S" : "B", // Type code: S = cents per km, B = logbook
+    P: otherTotal, // All other expenses
+    Q: cpk ? 0 : interest, // Interest expenses within Australia
+    T: totalExpenses, // Total expenses (non-primary production)
+    Z: round2(income - totalExpenses), // Net income or loss (non-primary) -> Q15 label C
+  };
+
   return {
     q, bas,
     basYear: { G1: sum(q.sales), "1A": sum(q.gstSales), G10: sum(q.g10), G11: sum(q.g11), "1B": sum(q.gstPurch),
       net: round2(sum(q.gstSales) - sum(q.gstPurch)) },
     profitByQuarter: [0, 1, 2, 3].map((i) => round2(q.netIncome[i] - q.fees[i] - q.expenses[i])),
-    logbook: lb, annualCarPct,
+    logbook: lb, annualCarPct, p8,
     tax: {
       businessIncome: sum(q.netIncome), income, carLines, depreciation, interest, logbookTotal, cpkKm, cpkTotal,
       carClaim, feeLines, feesTotal, otherLines, otherTotal, totalExpenses, profit: round2(income - totalExpenses),

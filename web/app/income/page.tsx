@@ -7,7 +7,7 @@ import { PageHead, QuarterTabs } from "@/components/QuarterTabs";
 import { IncomeForm } from "@/components/IncomeForm";
 import { Icon } from "@/components/Icon";
 
-type Entry = { id: string; start_date: string; end_date: string; platform: string; lines: Record<string, number> };
+type Entry = { id: string; start_date: string; end_date: string; platform: string; lines: Record<string, number>; fees: Record<string, number> };
 
 export default async function Income({ searchParams }: PageProps<"/income">) {
   const { supabase } = await requireUser();
@@ -18,12 +18,12 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
   const qEnd = new Date(Date.UTC(Number(months[2].slice(0, 4)), Number(months[2].slice(5, 7)), 0)).toISOString().slice(0, 10);
   const [year, { data, error }] = await Promise.all([
     loadYear(supabase, fy),
-    supabase.from("income_entries").select("id,start_date,end_date,platform,lines")
+    supabase.from("income_entries").select("id,start_date,end_date,platform,lines,fees")
       .gte("start_date", qStart).lte("start_date", qEnd).order("start_date", { ascending: false }).order("platform"),
   ]);
   if (error) throw new Error(error.message);
   const entries = (data ?? []) as Entry[];
-  const rows = entries.map((e) => ({ ...e, ...platformMonth(e.platform, e.lines, {}, year.gst_registered) }));
+  const rows = entries.map((e) => ({ ...e, ...platformMonth(e.platform, e.lines, e.fees ?? {}, year.gst_registered) }));
   const total = (k: string) => entries.reduce((s, e) => s + (Number(e.lines[k]) || 0), 0);
   const sales = rows.reduce((s, r) => s + r.sales, 0);
   const groups = [...Map.groupBy(rows, (r) => `${r.start_date}|${r.end_date}`)];
@@ -43,7 +43,7 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
 
       <div className="rise rise-1 mb-6 grid gap-3 lg:grid-cols-[1.3fr_1fr]">
         <div className="card-ink">
-          <p className="text-sm text-white/60">Total earnings this quarter (incl GST)</p>
+          <p className="text-sm text-white/60">Total sales this quarter (BAS G1, incl GST)</p>
           <p className="display mt-1 tabular-nums">{aud(sales)}</p>
           <p className="mt-2 text-sm text-white/60">GST included (1A) {aud(gst)}</p>
         </div>
@@ -101,7 +101,7 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
                             {overlaps.has(r.id) && <span className="pill ml-2 bg-[#fff8e6] text-ink ring-1 ring-warn">Overlaps</span>}
                           </span>
                           <span className="block truncate text-[13px] text-mute">
-                            {INCOME_LINES.filter((l) => Number(r.lines[l])).map((l) => `${l} ${aud(Number(r.lines[l]))}`).join(" · ") || "No amounts"}
+                            {INCOME_LINES.filter((l) => Number(r.lines[l])).map((l) => `${l} ${aud(Number(r.lines[l]))}`).concat(Number(r.fees?.["Service fees"]) ? [`Service fee ${aud(Number(r.fees["Service fees"]))}`] : []).join(" · ") || "No amounts"}
                           </span>
                         </span>
                         <span className="font-bold tabular-nums">{aud(r.sales)}</span>

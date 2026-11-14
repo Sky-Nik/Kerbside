@@ -39,7 +39,7 @@ export function IncomeForm({ defaultFrom }: { defaultFrom: string }) {
         ))}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         <label className="field">From
           <input name="from" type="date" required value={from}
             onChange={(e) => {
@@ -56,7 +56,14 @@ export function IncomeForm({ defaultFrom }: { defaultFrom: string }) {
             <input name={`line:${l}`} type="number" step="0.01" inputMode="decimal" placeholder="0.00" />
           </label>
         ))}
+        <label className="field"><span>Service fee <span className="text-[11px] font-normal text-mute">recommended</span></span>
+          <input name="fee:Service fees" type="number" step="0.01" inputMode="decimal" placeholder="0.00" />
+        </label>
       </div>
+      <p className="muted -mt-2">
+        The ATO charges GST on the <b className="text-ink">full fare</b> the rider pays, not your net fare. Add the {platform} service fee
+        (shown in the trip or weekly breakdown) so your BAS is right; you get its GST back as a credit.
+      </p>
 
       <div className="flex flex-wrap items-center gap-4">
         <button className="btn"><Icon name="plus" size={18} />Add {platform} earnings</button>

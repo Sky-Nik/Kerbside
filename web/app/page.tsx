@@ -66,6 +66,26 @@ export default async function Dashboard() {
         </Link>
       </div>
 
+      <section className="card rise rise-3 flex flex-col gap-5 lg:flex-row lg:items-center">
+        <div className="flex items-center gap-4 lg:flex-1">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-black text-white"><Icon name="tax" /></span>
+          <div>
+            <h2 className="h2">Reports for lodging</h2>
+            <p className="muted">PDFs laid out the way the ATO asks: BAS labels each quarter, and the business schedule (P8) for your tax return.</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {[0, 1, 2, 3].map((i) => (
+            <a key={i} href={`/reports/bas?q=${i}&fy=${fy}`} className={i === cq ? "btn btn-sm" : "btn-secondary btn-sm"}>
+              <Icon name="upload" size={14} className="rotate-180" />BAS Q{i + 1}
+            </a>
+          ))}
+          <a href={`/reports/tax?fy=${fy}`} className="btn-secondary btn-sm !bg-[#fff4d9] ring-1 ring-warn">
+            <Icon name="upload" size={14} className="rotate-180" />Tax summary {fy}
+          </a>
+        </div>
+      </section>
+
       {(noPct || !!missing) && (
         <div className="rise rise-3 grid gap-3 sm:grid-cols-2">
           {noPct && (

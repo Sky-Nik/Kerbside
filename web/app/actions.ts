@@ -40,7 +40,10 @@ export async function saveIncome(f: FormData) {
   const lines: Record<string, number> = {};
   for (const l of INCOME_LINES) if (str(f, `line:${l}`) !== "") lines[l] = money(f, `line:${l}`);
   if (!Object.keys(lines).length) throw new Error("Enter at least one amount");
-  check((await supabase.from("income_entries").insert({ user_id: user.id, start_date, end_date, platform, lines, fees: {} })).error);
+  // Optional platform service fee: needed so BAS G1/1A use the full fare (ATO), and claimed back at 1B.
+  const fees: Record<string, number> = {};
+  if (str(f, "fee:Service fees") !== "") fees["Service fees"] = money(f, "fee:Service fees");
+  check((await supabase.from("income_entries").insert({ user_id: user.id, start_date, end_date, platform, lines, fees })).error);
   done();
 }
 

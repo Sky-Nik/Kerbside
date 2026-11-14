@@ -1,7 +1,7 @@
 // Run: npm test   (node's built-in test runner; same scenario was verified in the Excel workbook)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { carPurchaseGst, daysOwned, overlappingIds, fyOf, logbook, mondayOf, monthsOf, quarterOf, summarise, type YearSettings } from "./tax.ts";
+import { carPurchaseGst, daysOwned, overlappingIds, round2, fyOf, logbook, mondayOf, monthsOf, quarterOf, summarise, type YearSettings } from "./tax.ts";
 
 const year: YearSettings = {
   fy: "2026-27", gst_registered: true, car_method: "logbook",
@@ -84,6 +84,32 @@ test("overlapping income ranges are flagged per platform", () => {
     { id: "d", platform: "DiDi", start_date: "2026-11-02", end_date: "2026-11-08" },
   ]);
   assert.deepEqual([...ids].sort(), ["a", "b"]);
+});
+
+test("ATO P8 labels add up to totals; service fee lifts G1 and 1B but not net GST", () => {
+  const data = {
+    incomeEntries: [{ start_date: "2026-11-02", platform: "Uber", lines: { "Net fare": 880 }, fees: { "Service fees": 220 } }],
+    otherIncome: [], trips: [], carTx: [],
+    expenses: [
+      { date: "2026-11-03", amount: 110, category: "Car - Fuel" },
+      { date: "2026-11-04", amount: 220, category: "Car - Rent, hire & lease payments" },
+      { date: "2026-11-05", amount: 55, category: "Parking" },
+    ],
+  };
+  const s = summarise({ ...year, loan_interest: 1000, opening_value: 20000 }, data);
+  const p = s.p8;
+  assert.equal(s.bas[1].G1, 1100); // full fare = net 880 + fee 220 (ATO: GST on the full fare)
+  assert.equal(s.bas[1]["1A"], 100);
+  assert.equal(p.F, 200); // service fee ex GST
+  assert.equal(p.J, 160); // car lease 220 × 80% ex GST
+  assert.equal(p.N, 80); // fuel only; lease/depreciation/interest have their own labels
+  assert.equal(p.nType, "B");
+  assert.equal(round2(p.F + p.J + p.M + p.N + p.P + p.Q), p.T);
+  assert.equal(p.T, s.tax.totalExpenses);
+  assert.equal(p.Z, s.tax.profit);
+  const net = summarise(year, { ...data, incomeEntries: [{ ...data.incomeEntries[0], fees: {} }] });
+  assert.equal(net.bas[1].G1, 880); // net fare only understates G1 ...
+  assert.equal(net.bas[1].net, s.bas[1].net); // ... but GST payable is the same
 });
 
 test("car purchase GST rules", () => {
