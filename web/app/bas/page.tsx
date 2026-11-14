@@ -30,7 +30,7 @@ export default async function Bas() {
   return (
     <main>
       <PageHead eyebrow={`FY ${fy}`} title="BAS summary">
-        <div className="text-sm sm:text-right">
+        <div className="text-sm lg:text-right">
           <p className="text-mute">Year net GST {s.basYear.net < 0 ? "refund" : "payable"}</p>
           <p className={`text-2xl font-bold tabular-nums ${s.basYear.net < 0 ? "text-pos" : ""}`}>{aud(Math.abs(s.basYear.net))}</p>
         </div>

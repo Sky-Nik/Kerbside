@@ -72,7 +72,7 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
                         <p className="eyebrow mb-2">Income incl GST</p>
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                           {def.lines.map((l) => (
-                            <label key={l} className="field">{l}
+                            <label key={l} className="field justify-end">{l}
                               <input name={`line:${l}`} type="number" step="0.01" inputMode="decimal" defaultValue={lines[l] ?? ""} placeholder="0.00" />
                             </label>
                           ))}
@@ -85,7 +85,7 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
                             const derived = calc.feeRows.find((r) => r.type === t)?.derived ?? 0;
                             const auto = Object.values(def.passThrough).includes(t);
                             return (
-                              <label key={t} className="field">
+                              <label key={t} className="field justify-end">
                                 <span>{t}{auto && <span className="ml-1 text-[11px] font-normal text-mute">auto</span>}</span>
                                 <input name={`fee:${t}`} type="number" step="0.01" inputMode="decimal" defaultValue={fees[t] ?? ""}
                                   placeholder={auto ? derived.toFixed(2) : "0.00"} />

@@ -17,7 +17,7 @@ export async function Header() {
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2 text-[17px] font-bold tracking-[-0.02em]">
             <span className="grid h-7 w-7 place-items-center rounded-md bg-white text-[13px] font-bold text-black">RT</span>
-            <span>Rideshare&nbsp;Tax</span>
+            <span className="hidden sm:inline">Rideshare&nbsp;Tax</span>
           </Link>
           <TopNav />
           <div className="ml-auto flex items-center gap-1">
