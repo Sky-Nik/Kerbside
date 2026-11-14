@@ -4,6 +4,8 @@ import { PCT_LABELS, logbook, fyRange, type PctKey } from "@/lib/tax";
 import { pct } from "@/lib/fmt";
 import { saveSettings } from "@/app/actions";
 import { PageHead } from "@/components/QuarterTabs";
+import { PlatformPicker } from "@/components/PlatformPicker";
+import type { PlatformName, WorkType } from "@/lib/platforms";
 
 const TIPS: Record<PctKey, string> = {
   car: "Logbook % if you have one, otherwise a reasonable estimate (fine for BAS).",
@@ -29,6 +31,15 @@ export default async function Settings() {
   return (
     <main>
       <PageHead eyebrow={`FY ${fy}`} title="Settings" />
+      <section className="card rise mb-6">
+        <h2 className="h2 mb-4">Work type and platforms</h2>
+        <PlatformPicker
+          initialTypes={(profile?.work_types ?? []) as WorkType[]}
+          initialPlatforms={(profile?.platforms ?? []) as PlatformName[]}
+          initialGst={year.gst_registered}
+          submitLabel="Save platforms"
+        />
+      </section>
       <form action={saveSettings} className="space-y-6">
         <input type="hidden" name="fy" value={fy} />
 

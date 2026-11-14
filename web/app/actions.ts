@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser, supabaseServer } from "@/lib/supabase/server";
-import { loadYear } from "@/lib/data";
+import { getFy, loadYear } from "@/lib/data";
 import { INCOME_LINES, PLATFORMS, PCT_LABELS, daysOwned, type PctKey } from "@/lib/tax";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
@@ -132,4 +132,63 @@ export async function saveVehicle(f: FormData) {
     vehicle: str(f, "vehicle") || null, odo_year_start: optNum(f, "odo_year_start"), odo_year_end: optNum(f, "odo_year_end"),
     car_start_date: from, car_end_date: to, days_owned,
   });
+}
+
+/** Onboarding / Settings: work types, platforms and GST registration for the current year. */
+export async function savePlatforms(f: FormData) {
+  const { supabase, user } = await requireUser();
+  const types = f.getAll("work_types").map(String).filter((t) => t === "rideshare" || t === "delivery");
+  const platforms = f.getAll("platforms").map(String).filter((p) => p in PLATFORMS);
+  if (!types.length || !platforms.length) throw new Error("Choose your work type and at least one platform.");
+  check((await supabase.from("profiles").upsert({ user_id: user.id, work_types: types, platforms,
+    updated_at: new Date().toISOString() })).error);
+  // ATO: rideshare drivers must be registered for GST from the first trip.
+  await saveYear(await getFy(), { gst_registered: types.includes("rideshare") || f.get("gst_registered") === "on" });
+  if (f.get("next") === "/") redirect("/");
+}
+
+// ---------- Document imports ----------
+type ImportPayload = {
+  path: string; fileName: string; kind: "tax_return" | "platform_summary" | "other"; fy: string | null; title: string;
+  parsed: Record<string, unknown>;
+  // platform summary only: entries to add to income (already reviewed by the user)
+  entries?: { platform: string; start_date: string; end_date: string; lines: Record<string, number>; fees: Record<string, number> }[];
+};
+
+/** Step 2 of an import: save the document and (optionally) the income it contains. */
+export async function confirmImport(p: ImportPayload) {
+  const { supabase, user } = await requireUser();
+  if (!p.path.startsWith(`${user.id}/`)) throw new Error("Not allowed");
+  if (p.fy && !/^\d{4}-\d{2}$/.test(p.fy)) throw new Error("Bad financial year");
+  const { data: doc, error } = await supabase.from("documents").insert({
+    kind: p.kind, fy: p.fy, title: p.title.slice(0, 120) || "Document", storage_path: p.path,
+    file_name: p.fileName.slice(0, 200), parsed: p.parsed ?? {},
+  }).select("id").single();
+  check(error);
+  if (!doc) throw new Error("Couldn't save the document.");
+  const rows = (p.entries ?? []).filter((e) => e.platform in PLATFORMS && Object.values(e.lines).some((v) => Number(v)));
+  if (rows.length) {
+    check((await supabase.from("income_entries").insert(rows.map((e) => ({
+      user_id: user.id, platform: e.platform, start_date: e.start_date, end_date: e.end_date,
+      lines: e.lines, fees: e.fees, source_document_id: doc.id,
+    })))).error);
+  }
+  done();
+  return { id: doc.id, added: rows.length };
+}
+
+/** Cancel an import: remove the uploaded file. */
+export async function cancelImport(path: string) {
+  const { supabase, user } = await requireUser();
+  if (!path.startsWith(`${user.id}/`)) throw new Error("Not allowed");
+  await supabase.storage.from("documents").remove([path]);
+}
+
+export async function deleteDocument(f: FormData) {
+  const { supabase } = await requireUser();
+  const id = str(f, "id");
+  const { data } = await supabase.from("documents").select("storage_path").eq("id", id).maybeSingle();
+  if (data?.storage_path) await supabase.storage.from("documents").remove([data.storage_path]);
+  check((await supabase.from("documents").delete().eq("id", id)).error);
+  done();
 }

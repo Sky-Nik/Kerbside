@@ -37,6 +37,9 @@ export const INCOME_LINES = ["Net fare", "Promotions", "Tips"] as const;
 export const PLATFORMS: Record<string, PlatformDef> = {
   Uber: { lines: [...INCOME_LINES], fees: [], passThrough: {} },
   DiDi: { lines: [...INCOME_LINES], fees: [], passThrough: {} },
+  "Uber Eats": { lines: [...INCOME_LINES], fees: [], passThrough: {} },
+  DoorDash: { lines: [...INCOME_LINES], fees: [], passThrough: {} },
+  HungryPanda: { lines: [...INCOME_LINES], fees: [], passThrough: {} },
 };
 
 /** Monday (ISO date) of the week containing `iso`. */

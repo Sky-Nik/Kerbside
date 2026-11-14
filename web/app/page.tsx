@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/supabase/server";
-import { getFy, loadYear, loadYearData, pickQuarter } from "@/lib/data";
+import { getFy, loadYear, loadYearData, pickQuarter, requirePlatforms } from "@/lib/data";
 import { BAS_DUE, fyRange, summarise } from "@/lib/tax";
 import { aud, pct } from "@/lib/fmt";
 import { Icon } from "@/components/Icon";
-import { CategoryBars, IncomeExpenseChart } from "@/components/Charts";
+import { CategoryBars, HistoryChart, IncomeExpenseChart } from "@/components/Charts";
+import { loadHistory } from "@/lib/history";
 
 const QN = ["Jul – Sep", "Oct – Dec", "Jan – Mar", "Apr – Jun"];
 
 export default async function Dashboard() {
   const { supabase } = await requireUser();
+  await requirePlatforms(supabase);
   const fy = await getFy();
   const [year, data] = await Promise.all([loadYear(supabase, fy), loadYearData(supabase, fy)]);
   const s = summarise(year, data);
@@ -35,6 +37,7 @@ export default async function Dashboard() {
   const ratio = t.income > 0 ? t.totalExpenses / t.income : 0;
   const qIncome = s.q.netIncome;
   const qExpenses = [0, 1, 2, 3].map((i) => s.q.fees[i] + s.q.expenses[i]);
+  const history = await loadHistory(supabase, fy, { business: t.income, wages: Number(year.wages) || 0, other: Number(year.other_income) || 0 });
 
   return (
     <main className="space-y-6 pt-8">
@@ -130,6 +133,33 @@ export default async function Dashboard() {
           {categories.length > 6 && <p className="muted mt-3">+ {categories.length - 6} more categories</p>}
         </section>
       </div>
+
+      <section className="card rise rise-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="h2">Income history</h2>
+            <p className="muted">Every year in one place. Past years come from lodged returns you upload in Documents.</p>
+          </div>
+          <Link href="/documents" className="btn-secondary btn-sm"><Icon name="upload" size={14} />Upload a past return</Link>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-4 text-xs">
+          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-black" />Business (ex GST)</span>
+          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-warn" />Wages</span>
+          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-mute-2" />Interest & other</span>
+        </div>
+        <div className="mt-3"><HistoryChart years={history} /></div>
+        <div className="mt-2 overflow-x-auto">
+          <table className="tbl min-w-[520px]">
+            <thead><tr><th>Year</th><th className="num">Business</th><th className="num">Wages</th><th className="num">Other</th><th className="num">Taxable income</th><th>Source</th></tr></thead>
+            <tbody>
+              {history.map((h) => (
+                <tr key={h.fy}><td className="font-medium">{h.fy}</td><td className="num">{aud(h.business)}</td><td className="num">{aud(h.wages)}</td>
+                  <td className="num">{aud(h.other)}</td><td className="num">{h.taxable == null ? "–" : aud(h.taxable)}</td><td className="text-xs text-mute">{h.source}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className="card rise rise-3 flex flex-col gap-5 lg:flex-row lg:items-center">
         <div className="flex items-center gap-4 lg:flex-1">

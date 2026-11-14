@@ -23,6 +23,7 @@ export async function Header() {
               <AutoSubmitSelect name="fy" defaultValue={fy} aria-label="Financial year"
                 options={fyOptions(fy).map((y) => ({ value: y, label: `FY ${y}` }))} />
             </form>
+            <Link href="/documents" className="grid h-9 w-9 place-items-center rounded-full text-white/80 hover:bg-white/10 lg:hidden" aria-label="Documents"><Icon name="folder" /></Link>
             <Link href="/logbook" className="grid h-9 w-9 place-items-center rounded-full text-white/80 hover:bg-white/10 lg:hidden" aria-label="Logbook"><Icon name="car" /></Link>
             <Link href="/settings" className="grid h-9 w-9 place-items-center rounded-full text-white/80 hover:bg-white/10 lg:hidden" aria-label="Settings"><Icon name="gear" /></Link>
             <form action={signOut}>

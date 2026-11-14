@@ -56,3 +56,32 @@ export function CategoryBars({ items, total }: { items: { label: string; value: 
     </ul>
   );
 }
+
+/** Stacked bars of income by financial year (business, wages, other). */
+export function HistoryChart({ years }: { years: { fy: string; business: number; wages: number; other: number }[] }) {
+  const totals = years.map((y) => y.business + y.wages + y.other);
+  const max = Math.max(1, ...totals);
+  const W = 520, H = 210, top = 22, base = H - 28, slot = W / Math.max(years.length, 3), barW = Math.min(64, slot * 0.5);
+  const h = (v: number) => ((base - top) * v) / max;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img"
+      aria-label={years.map((y, i) => `FY ${y.fy}: ${aud(totals[i])}`).join("; ")}>
+      <line x1="0" x2={W} y1={base} y2={base} stroke="#e2e2e2" />
+      {years.map((y, i) => {
+        const x = slot * i + (slot - barW) / 2;
+        const segs = [["#000000", y.business], ["#ffc043", y.wages], ["#afafaf", y.other]] as const;
+        let acc = 0;
+        return (
+          <g key={y.fy}>
+            {segs.map(([fill, v]) => {
+              const hh = h(v); acc += hh;
+              return hh > 0 ? <rect key={fill} x={x} y={base - acc} width={barW} height={hh} fill={fill}><title>{`${y.fy}: ${aud(v)}`}</title></rect> : null;
+            })}
+            <text x={x + barW / 2} y={base - h(totals[i]) - 6} textAnchor="middle" fontSize="11" fontWeight="700">{aud(totals[i]).replace(/\.\d\d$/, "")}</text>
+            <text x={x + barW / 2} y={H - 8} textAnchor="middle" fontSize="12" fontWeight="600" fill="#545454">{y.fy}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}

@@ -9,11 +9,11 @@ const QN = ["Jul – Sep", "Oct – Dec", "Jan – Mar", "Apr – Jun"];
 export default async function ReportView({ searchParams }: PageProps<"/reports/view">) {
   await requireUser();
   const sp = await searchParams;
-  const kind = sp.kind === "tax" ? "tax" : "bas";
+  const kind = sp.kind === "tax" || sp.kind === "receipts" ? sp.kind : "bas";
   const fyParam = typeof sp.fy === "string" && /^\d{4}-\d{2}$/.test(sp.fy) ? sp.fy : await getFy();
   const q = Math.min(3, Math.max(0, Number(sp.q) || 0));
-  const base = kind === "bas" ? `/reports/bas?q=${q}&fy=${fyParam}` : `/reports/tax?fy=${fyParam}`;
-  const title = kind === "bas" ? `BAS report · Q${q + 1} ${QN[q]}` : "Tax summary";
+  const base = kind === "bas" ? `/reports/bas?q=${q}&fy=${fyParam}` : `/reports/${kind}?fy=${fyParam}`;
+  const title = kind === "bas" ? `BAS report · Q${q + 1} ${QN[q]}` : kind === "tax" ? "Tax summary" : "Receipts register";
 
   return (
     <main className="pt-6">

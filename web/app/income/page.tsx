@@ -1,16 +1,19 @@
 import { requireUser } from "@/lib/supabase/server";
-import { getFy, loadYear, pickQuarter } from "@/lib/data";
+import { getFy, loadYear, pickQuarter, requirePlatforms } from "@/lib/data";
 import { INCOME_LINES, mondayOf, monthsOf, overlappingIds, platformMonth } from "@/lib/tax";
 import { aud, auDate } from "@/lib/fmt";
 import { deleteRow } from "@/app/actions";
 import { PageHead, QuarterTabs } from "@/components/QuarterTabs";
 import { IncomeForm } from "@/components/IncomeForm";
+import { ImportDocument } from "@/components/ImportDocument";
 import { Icon } from "@/components/Icon";
+import { PlatformTile } from "@/components/PlatformTile";
 
 type Entry = { id: string; start_date: string; end_date: string; platform: string; lines: Record<string, number>; fees: Record<string, number> };
 
 export default async function Income({ searchParams }: PageProps<"/income">) {
   const { supabase } = await requireUser();
+  const platforms = await requirePlatforms(supabase);
   const fy = await getFy();
   const q = pickQuarter((await searchParams).q, fy);
   const months = monthsOf(fy, q);
@@ -59,7 +62,11 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
 
       <section className="card rise rise-2 mb-8">
         <h2 className="h2 mb-4">Add earnings</h2>
-        <IncomeForm defaultFrom={defaultFrom} />
+        <IncomeForm defaultFrom={defaultFrom} platforms={platforms} />
+        <details className="mt-6 border-t border-wash-2 pt-4">
+          <summary className="cursor-pointer text-sm font-medium">Missed some weeks? Import a monthly tax summary (PDF)</summary>
+          <div className="mt-3"><ImportDocument intro="Upload a monthly Uber tax summary. Kerbside reads the amounts, you check the dates, and it’s added as income." /></div>
+        </details>
       </section>
 
       {overlaps.size > 0 && (
@@ -92,9 +99,7 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
                   <ul className="divide-y divide-wash-2 px-5">
                     {items.map((r) => (
                       <li key={r.id} className="flex items-center gap-x-4 py-3">
-                        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold ${r.platform === "Uber" ? "bg-black text-white" : "bg-wash-2"}`}>
-                          {r.platform === "Uber" ? "U" : "D"}
-                        </span>
+                        <PlatformTile name={r.platform} size={36} />
                         <span className="min-w-0 flex-1">
                           <span className="block text-sm font-medium">
                             {r.platform}

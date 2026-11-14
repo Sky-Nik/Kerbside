@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@react-pdf/renderer"], // PDF reports render in Node, not bundled
+  serverExternalPackages: ["@react-pdf/renderer", "unpdf"], // PDF reports render in Node, not bundled
   // ponytail: every page is per-user and dynamic, so Cache Components / partial prefetching are off.
   turbopack: {
     root: __dirname, // the parent folder is the Expo app with its own lockfile

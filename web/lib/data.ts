@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ATO_RATES, currentFy, fyRange, quarterOf, type YearData, type YearSettings } from "./tax";
 
@@ -47,4 +48,11 @@ export async function loadYearData(sb: SupabaseClient, fy: string): Promise<Year
     incomeEntries: pm.data ?? [], otherIncome: oi.data ?? [], expenses: ex.data ?? [],
     trips: tr.data ?? [], carTx: (ct.data ?? []) as YearData["carTx"],
   };
+}
+
+/** The user's chosen platforms; sends them to onboarding if they haven't picked any yet. */
+export async function requirePlatforms(sb: SupabaseClient): Promise<string[]> {
+  const { data } = await sb.from("profiles").select("platforms").maybeSingle();
+  if (!data?.platforms?.length) redirect("/welcome");
+  return data.platforms as string[];
 }

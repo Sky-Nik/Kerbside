@@ -3,12 +3,13 @@ import { useRef, useState } from "react";
 import { saveIncome } from "@/app/actions";
 import { INCOME_LINES, addDays } from "@/lib/tax";
 import { Icon } from "./Icon";
-
-const PLATFORMS = ["Uber", "DiDi"] as const;
+import { PlatformTile } from "./PlatformTile";
+import { netLabel, PLATFORM_INFO, type PlatformName } from "@/lib/platforms";
 
 /** One entry = one platform's earnings between two dates (usually a Monday–Sunday week). */
-export function IncomeForm({ defaultFrom }: { defaultFrom: string }) {
-  const [platform, setPlatform] = useState<(typeof PLATFORMS)[number]>("Uber");
+export function IncomeForm({ defaultFrom, platforms }: { defaultFrom: string; platforms: string[] }) {
+  const [platform, setPlatform] = useState<string>(platforms[0] ?? "Uber");
+  const delivery = PLATFORM_INFO[platform as PlatformName]?.type === "delivery";
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(addDays(defaultFrom, 6));
   const [msg, setMsg] = useState<string | null>(null);
@@ -32,10 +33,12 @@ export function IncomeForm({ defaultFrom }: { defaultFrom: string }) {
       }}
     >
       <input type="hidden" name="platform" value={platform} />
-      <div className="seg" role="radiogroup" aria-label="Platform">
-        {PLATFORMS.map((p) => (
-          <button key={p} type="button" role="radio" aria-checked={platform === p}
-            onClick={() => setPlatform(p)} className={`tab ${platform === p ? "tab-on" : ""}`}>{p}</button>
+      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Platform">
+        {platforms.map((p) => (
+          <button key={p} type="button" role="radio" aria-checked={platform === p} onClick={() => setPlatform(p)}
+            className={`flex items-center gap-2 rounded-full py-1 pr-4 pl-1 text-sm font-medium ring-2 transition ${platform === p ? "bg-white ring-ink" : "bg-wash ring-transparent hover:bg-wash-2"}`}>
+            <PlatformTile name={p} size={30} />{p}
+          </button>
         ))}
       </div>
 
@@ -52,7 +55,7 @@ export function IncomeForm({ defaultFrom }: { defaultFrom: string }) {
           <input name="to" type="date" required min={from} value={to} onChange={(e) => setTo(e.currentTarget.value)} />
         </label>
         {INCOME_LINES.map((l) => (
-          <label key={l} className="field">{l}
+          <label key={l} className="field">{l === "Net fare" ? netLabel(platform) : l}
             <input name={`line:${l}`} type="number" step="0.01" inputMode="decimal" placeholder="0.00" />
           </label>
         ))}
@@ -61,8 +64,10 @@ export function IncomeForm({ defaultFrom }: { defaultFrom: string }) {
         </label>
       </div>
       <p className="muted -mt-2">
-        The ATO charges GST on the <b className="text-ink">full fare</b> the rider pays, not your net fare. Add the {platform} service fee
-        (shown in the trip or weekly breakdown) so your BAS is right; you get its GST back as a credit.
+        {delivery
+          ? <>Add any {platform} service or platform fee shown in your earnings breakdown, so your BAS is right; you get its GST back as a credit (if you’re registered for GST).</>
+          : <>The ATO charges GST on the <b className="text-ink">full fare</b> the rider pays, not your net fare. Add the {platform} service fee
+            (shown in the trip or weekly breakdown) so your BAS is right; you get its GST back as a credit.</>}
       </p>
 
       <div className="flex flex-wrap items-center gap-4">
