@@ -4,15 +4,17 @@ import { summarise } from "@/lib/tax";
 import { aud, kmFmt, pct } from "@/lib/fmt";
 import { saveTaxInputs } from "@/app/actions";
 import { PageHead } from "@/components/QuarterTabs";
+import { Tip } from "@/components/Tip";
+import type { HelpKey } from "@/lib/help";
 
 type Line = { label: string; q: number[] };
 const sum = (a: number[]) => a.reduce((s, v) => s + v, 0);
 
-function Group({ title, total, children, note }: { title: string; total: number; children: React.ReactNode; note?: React.ReactNode }) {
+function Group({ title, total, children, note, tip }: { title: string; total: number; children: React.ReactNode; note?: React.ReactNode; tip?: HelpKey }) {
   return (
     <section className="card">
       <div className="flex items-baseline justify-between gap-4">
-        <h2 className="h2">{title}</h2>
+        <h2 className="h2 flex items-center gap-2">{title}{tip && <Tip k={tip} align="left" />}</h2>
         <span className="text-xl font-bold tabular-nums">{aud(total)}</span>
       </div>
       {note && <p className="muted mt-1">{note}</p>}
@@ -46,11 +48,11 @@ export default async function Tax() {
         <div><p className="text-sm text-white/60">Total expenses</p><p className="mt-1 text-2xl font-bold tabular-nums">{aud(t.totalExpenses)}</p></div>
         <div><p className="text-sm text-white/60">Net business profit</p><p className="display mt-1 !text-[2.5rem] tabular-nums">{aud(t.profit)}</p></div>
       </section>
-      <p className="rise rise-1 mb-6 text-sm text-mute">All amounts exclude GST. Hand this page to your accountant or use it to fill in myTax.</p>
+      <p className="rise rise-1 mb-6 flex items-center gap-2 text-sm text-mute">All amounts exclude GST. Hand this page to your accountant or use it to fill in myTax.<Tip k="p8" /></p>
 
       <section className={`rise rise-2 mb-6 grid gap-6 rounded-2xl p-6 lg:grid-cols-[1fr_1.2fr] ${e.result >= 0 ? "bg-[#e9f7ef]" : "bg-[#fff0ee]"}`}>
         <div>
-          <p className="text-sm font-medium text-ink-2">{e.result > 0 ? "Estimated tax refund" : e.result < 0 ? "Estimated tax to pay" : "No tax to pay (estimate)"}</p>
+          <p className="flex items-center gap-2 text-sm font-medium text-ink-2"><Tip k="estimate" align="left" />{e.result > 0 ? "Estimated tax refund" : e.result < 0 ? "Estimated tax to pay" : "No tax to pay (estimate)"}</p>
           <p className={`display mt-1 tabular-nums ${e.result >= 0 ? "text-pos" : "text-neg"}`}>{aud(Math.abs(e.result))}</p>
           <p className="mt-2 text-sm text-mute">
             Income tax for FY {fy}, based on your business profit plus the other income you enter below.
@@ -85,7 +87,7 @@ export default async function Tax() {
           {!!year.other_business_income && <Row label="Other business income" value={year.other_business_income} />}
         </Group>
 
-        <Group title={`Car expenses · ${cpk ? "cents per km" : "logbook"}`} total={t.carClaim}
+        <Group title={`Car expenses · ${cpk ? "cents per km" : "logbook"}`} total={t.carClaim} tip="carMethod"
           note={cpk ? "Covers all car costs, capped at 5,000 km." : `Logbook total vs cents per km: ${aud(t.cpkTotal)} (${kmFmt(t.cpkKm)} km). Change method in Settings.`}>
           {cpk ? <Row label={`${kmFmt(t.cpkKm)} km × ${aud(year.cpk_rate)}`} value={t.cpkTotal} /> : (
             <>
@@ -103,7 +105,7 @@ export default async function Tax() {
       <form action={saveTaxInputs} className="card rise rise-3 mt-8 space-y-6">
         <input type="hidden" name="fy" value={fy} />
         <div>
-          <h2 className="h2">Year-end inputs</h2>
+          <h2 className="h2 flex items-center gap-2">Year-end inputs<Tip k="yearEnd" align="left" /></h2>
           <p className="muted">Enter these once a year, before you lodge.</p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -112,7 +114,7 @@ export default async function Tax() {
           <label className="field">Car loan interest paid (100%)<input name="loan_interest" type="number" step="0.01" defaultValue={year.loan_interest || ""} placeholder="0.00" /></label>
         </div>
         <div className="border-t border-wash-2 pt-6">
-          <h3 className="font-bold">Other parts of your tax return <span className="font-normal text-mute">· for the refund estimate</span></h3>
+          <h3 className="flex items-center gap-2 font-bold">Other parts of your tax return <span className="font-normal text-mute">· for the refund estimate</span><Tip k="otherParts" align="left" /></h3>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <label className="field">Wages from jobs<input name="wages" type="number" step="0.01" defaultValue={year.wages || ""} placeholder="0.00" /></label>
             <label className="field">Tax withheld from wages<input name="tax_withheld" type="number" step="0.01" defaultValue={year.tax_withheld || ""} placeholder="0.00" /></label>
@@ -124,10 +126,10 @@ export default async function Tax() {
         </div>
         <div className="grid gap-6 border-t border-wash-2 pt-6 lg:grid-cols-[1fr_300px]">
           <div>
-            <h3 className="font-bold">Car depreciation <span className="font-normal text-mute">· diminishing value</span></h3>
+            <h3 className="flex items-center gap-2 font-bold">Car depreciation <span className="font-normal text-mute">· diminishing value</span><Tip k="depreciation" align="left" /></h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="field">Car cost incl on-road<input name="car_cost" type="number" step="0.01" defaultValue={year.car_cost || ""} placeholder="0.00" /></label>
-              <label className="field">Opening value this year<input name="opening_value" type="number" step="0.01" defaultValue={year.opening_value || ""} placeholder="0.00" /></label>
+              <label className="field"><span className="flex items-center gap-1.5">Opening value this year<Tip k="openingValue" /></span><input name="opening_value" type="number" step="0.01" defaultValue={year.opening_value || ""} placeholder="0.00" /></label>
               <label className="field">Days owned this year<input name="days_owned" type="number" min="0" max="366" defaultValue={year.days_owned} /></label>
               <label className="field">Effective life (years)<input name="effective_life" type="number" min="1" defaultValue={year.effective_life} /></label>
             </div>

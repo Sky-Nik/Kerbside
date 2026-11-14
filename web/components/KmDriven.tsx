@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
+import { Tip } from "./Tip";
 
 /** Counts up from 0 to `to` once, unless the user prefers reduced motion. */
 function useCountUp(to: number, ms = 1400) {
@@ -29,7 +30,7 @@ export function KmDriven({ fy, km, kmSource, businessPct, platformKm }: {
   return (
     <Link href="/logbook" className="card rise rise-4 group flex flex-col overflow-hidden !p-0 lg:col-span-2">
       <div className="flex items-center justify-between px-5 pt-5">
-        <h2 className="h2">Kilometres driven</h2>
+        <h2 className="h2 flex items-center gap-2">Kilometres driven<Tip k="km" align="left" /></h2>
         <Icon name="chevron" className="text-mute group-hover:text-ink" />
       </div>
 

@@ -6,6 +6,7 @@ import { addTrip, deleteRow, saveVehicle } from "@/app/actions";
 import { PageHead } from "@/components/QuarterTabs";
 import { PlatformTile } from "@/components/PlatformTile";
 import { Icon } from "@/components/Icon";
+import { Tip } from "@/components/Tip";
 
 const PURPOSES: Record<string, { label: string; color: string }> = {
   rideshare: { label: "Rideshare & delivery", color: "bg-white" },
@@ -44,7 +45,7 @@ export default async function Logbook() {
 
       <div className="grid gap-4 lg:grid-cols-5">
         <section className="card-ink rise rise-1 lg:col-span-3">
-          <p className="text-sm font-medium text-white/60">Business-use percentage</p>
+          <p className="flex items-center gap-2 text-sm font-medium text-white/60">Business-use percentage<Tip k="businessUse" align="left" /></p>
           <p className="display mt-2 tabular-nums">{pct(lb.businessPct)}</p>
           <p className="mt-1 text-sm text-white/60">
             {kmFmt(lb.total)} km logged · est. {kmFmt(lb.annualBusinessKm)} business km this year
@@ -64,7 +65,7 @@ export default async function Logbook() {
         </section>
 
         <form action={saveVehicle} className="card rise rise-2 flex flex-col gap-3 lg:col-span-2">
-          <h2 className="h2">Car & odometer</h2>
+          <h2 className="h2 flex items-center gap-2">Car & odometer<Tip k="carOdometer" align="left" /></h2>
           <input type="hidden" name="fy" value={fy} />
           <label className="field">Car (make, model, rego)<input name="vehicle" defaultValue={year.vehicle ?? ""} placeholder="Toyota Camry Hybrid · ABC123" /></label>
           <div className="grid grid-cols-2 gap-3">
@@ -96,7 +97,7 @@ export default async function Logbook() {
       <section className="card rise rise-3 mt-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="h2">Platform-reported kilometres</h2>
+            <h2 className="h2 flex items-center gap-2">Platform-reported kilometres<Tip k="platformKm" align="left" /></h2>
             <p className="muted max-w-2xl">“On trip mileage” from the tax summaries you import: distance with a passenger or order on board.
               It’s good supporting evidence, but it isn’t an odometer reading, so it doesn’t change your logbook %.</p>
           </div>
@@ -119,14 +120,14 @@ export default async function Logbook() {
       </section>
 
       <section className="card rise rise-3 mt-8">
-        <h2 className="h2">Add a trip</h2>
+        <h2 className="h2 flex items-center gap-2">Add a trip<Tip k="addTrip" align="left" /></h2>
         <p className="muted mb-4">For one day, leave “To” blank. Drove only for one purpose all week? Enter the whole week as one entry: the first and last day, with the odometer at the start and end.</p>
         <form action={addTrip} className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-7">
           <label className="field">From<input name="date" type="date" required min={tripMin} max={tripMax} /></label>
           <label className="field"><span>To <span className="text-[11px] font-normal text-mute">optional</span></span><input name="end_date" type="date" min={tripMin} max={tripMax} /></label>
           <label className="field">Odometer start<input name="odo_start" type="number" required defaultValue={lastOdo} /></label>
           <label className="field">Odometer end<input name="odo_end" type="number" required /></label>
-          <label className="field">Purpose
+          <label className="field"><span className="flex items-center gap-1.5">Purpose<Tip k="purpose" /></span>
             <select name="purpose" required>{Object.entries(PURPOSES).map(([v, p]) => <option key={v} value={v}>{p.label}</option>)}</select>
           </label>
           <label className="field">Description<input name="description" placeholder="For non-rideshare trips" /></label>

@@ -7,6 +7,8 @@ import { deleteDocument } from "@/app/actions";
 import { PageHead } from "@/components/QuarterTabs";
 import { ImportDocument } from "@/components/ImportDocument";
 import { Icon } from "@/components/Icon";
+import { Tip } from "@/components/Tip";
+import type { HelpKey } from "@/lib/help";
 
 type Doc = { id: string; kind: string; fy: string | null; title: string; file_name: string | null; parsed: Record<string, unknown>; created_at: string };
 
@@ -28,10 +30,10 @@ function DocRow({ d }: { d: Doc }) {
   );
 }
 
-function Section({ title, sub, items, empty }: { title: string; sub: string; items: Doc[]; empty: string }) {
+function Section({ title, sub, items, empty, tip }: { title: string; sub: string; items: Doc[]; empty: string; tip?: HelpKey }) {
   return (
     <section className="card">
-      <h2 className="h2">{title}</h2>
+      <h2 className="h2 flex items-center gap-2">{title}{tip && <Tip k={tip} align="left" />}</h2>
       <p className="muted">{sub}</p>
       {items.length ? <ul className="mt-2 divide-y divide-wash-2">{items.map((d) => <DocRow key={d.id} d={d} />)}</ul>
         : <p className="muted mt-3">{empty}</p>}
@@ -62,7 +64,7 @@ export default async function Documents() {
       <PageHead eyebrow="All years" title="Documents" />
 
       <section className="card rise rise-1">
-        <h2 className="h2 mb-3">Add a document</h2>
+        <h2 className="h2 mb-3 flex items-center gap-2">Add a document<Tip k="upload" align="left" /></h2>
         <ImportDocument />
         <p className="muted mt-3">
           Lodged returns: in myGov open ATO → Tax → Lodgments → Income tax, choose the year, then <b>Print</b> and save as PDF.
@@ -71,14 +73,14 @@ export default async function Documents() {
       </section>
 
       <div className="rise rise-2 space-y-6">
-        <Section title="Lodged tax returns" sub="Customer copies of returns you’ve lodged. Their figures feed your income history."
+        <Section tip="lodged" title="Lodged tax returns" sub="Customer copies of returns you’ve lodged. Their figures feed your income history."
           items={returns} empty="None yet. Upload a myGov print of a lodged return above." />
-        <Section title="Platform tax summaries" sub="Monthly or annual tax summaries from Uber." items={summaries} empty="None yet." />
+        <Section tip="summaries" title="Platform tax summaries" sub="Monthly or annual tax summaries from Uber." items={summaries} empty="None yet." />
         {others.length > 0 && <Section title="Other documents" sub="Anything else you’ve kept here." items={others} empty="" />}
       </div>
 
       <section className="card rise rise-3">
-        <h2 className="h2">Kerbside reports</h2>
+        <h2 className="h2 flex items-center gap-2">Kerbside reports<Tip k="reportsByYear" align="left" /></h2>
         <p className="muted mb-3">Generated from your records. Open one to preview, then download.</p>
         <ul className="divide-y divide-wash-2">
           {years.map((y) => (
@@ -97,7 +99,7 @@ export default async function Documents() {
       <section className="card rise rise-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="h2">Receipts · FY {fy}</h2>
+            <h2 className="h2 flex items-center gap-2">Receipts · FY {fy}<Tip k="receiptsSummary" align="left" /></h2>
             <p className="muted">Proof for your expenses. Change the year in the header to see other years.</p>
           </div>
           <Link href={`/reports/view?kind=receipts&fy=${fy}`} className="btn btn-sm"><Icon name="receipt" size={14} />Receipts proof pack (PDF)</Link>

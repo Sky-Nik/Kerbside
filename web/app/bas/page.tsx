@@ -5,6 +5,7 @@ import { aud, auDate, pct } from "@/lib/fmt";
 import { addCarTx, deleteRow } from "@/app/actions";
 import { PageHead } from "@/components/QuarterTabs";
 import { Icon } from "@/components/Icon";
+import { Tip } from "@/components/Tip";
 
 const LABELS = [
   ["G1", "Total sales"], ["1A", "GST on sales"], ["G10", "Capital purchases"],
@@ -50,6 +51,7 @@ export default async function Bas() {
                 <div key={k} className="flex items-center gap-3 rounded-xl bg-wash px-3 py-2.5">
                   <dt className="grid h-8 w-11 shrink-0 place-items-center rounded-md bg-black text-xs font-bold text-white">{k}</dt>
                   <span className="min-w-0 flex-1 truncate text-[13px] text-mute">{d}</span>
+                  {i === cq && <Tip k={({ G1: "g1", "1A": "a1", "1B": "b1", G10: "g10", G11: "g11" } as const)[k]} align="right" />}
                   <dd className="font-bold tabular-nums">{aud(b[k])}</dd>
                 </div>
               ))}
@@ -63,7 +65,7 @@ export default async function Bas() {
       </div>
 
       <section className="rise rise-4 mt-10">
-        <h2 className="mb-1 text-xl font-bold tracking-[-0.01em]">Car bought or sold</h2>
+        <h2 className="mb-1 flex items-center gap-2 text-xl font-bold tracking-[-0.01em]">Car bought or sold<Tip k="carTx" align="left" /></h2>
         <p className="muted mb-4 max-w-3xl">
           GST credit on a car is capped at the car limit ({aud(year.car_limit)}, so at most {aud(year.car_limit / 11)} GST) and
           multiplied by business use. A seller who isn’t GST-registered gives no credit. Only declare a sale if you used the car in the business.

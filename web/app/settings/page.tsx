@@ -6,6 +6,7 @@ import { saveSettings } from "@/app/actions";
 import { PageHead } from "@/components/QuarterTabs";
 import { PlatformPicker } from "@/components/PlatformPicker";
 import type { PlatformName, WorkType } from "@/lib/platforms";
+import { Tip } from "@/components/Tip";
 
 const TIPS: Record<PctKey, string> = {
   car: "Logbook % if you have one, otherwise a reasonable estimate (fine for BAS).",
@@ -32,7 +33,7 @@ export default async function Settings() {
     <main>
       <PageHead eyebrow={`FY ${fy}`} title="Settings" />
       <section className="card rise mb-6">
-        <h2 className="h2 mb-4">Work type and platforms</h2>
+        <h2 className="h2 mb-4 flex items-center gap-2">Work type and platforms<Tip k="platforms" align="left" /></h2>
         <PlatformPicker
           initialTypes={(profile?.work_types ?? []) as WorkType[]}
           initialPlatforms={(profile?.platforms ?? []) as PlatformName[]}
@@ -53,9 +54,9 @@ export default async function Settings() {
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-wash p-4 hover:bg-wash-2">
               <input type="checkbox" name="gst_registered" defaultChecked={year.gst_registered} />
-              <span><b className="block text-sm">Registered for GST</b><span className="text-[13px] text-mute">Required for rideshare from your first trip.</span></span>
+              <span><b className="flex items-center gap-2 text-sm">Registered for GST<Tip k="gst" align="left" /></b><span className="text-[13px] text-mute">Required for rideshare from your first trip.</span></span>
             </label>
-            <label className="field">Car expense method
+            <label className="field"><span className="flex items-center gap-1.5">Car expense method<Tip k="carMethod" align="right" /></span>
               <select name="car_method" defaultValue={year.car_method}>
                 <option value="logbook">Logbook (actual costs × business %)</option>
                 <option value="cpk">Cents per km (max 5,000 km)</option>
@@ -65,7 +66,7 @@ export default async function Settings() {
         </section>
 
         <section className="card rise rise-2">
-          <h2 className="h2">Business-use percentages</h2>
+          <h2 className="h2 flex items-center gap-2">Business-use percentages<Tip k="pctTable" align="left" /></h2>
           <p className="muted mb-4">Applied to expenses in each quarter.{lb.total ? <> Your logbook currently shows <b className="text-ink">{pct(lb.businessPct)}</b> car business use.</> : null}</p>
           <div className="space-y-4">
             {(Object.keys(PCT_LABELS) as PctKey[]).map((k) => (
@@ -87,7 +88,7 @@ export default async function Settings() {
         </section>
 
         <section className="card rise rise-3">
-          <h2 className="h2">ATO rates for FY {fy}</h2>
+          <h2 className="h2 flex items-center gap-2">ATO rates for FY {fy}<Tip k="atoRates" align="left" /></h2>
           <p className="muted mb-4">2026-27 starts with the 2025-26 figures until the ATO publishes new ones. Check ato.gov.au and update here.</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <label className="field">Car cost limit (incl GST)<input name="car_limit" type="number" step="0.01" defaultValue={year.car_limit} /></label>

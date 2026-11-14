@@ -8,6 +8,7 @@ import { CategoryBars, IncomeExpenseChart } from "@/components/Charts";
 import { EarningsPanel } from "@/components/EarningsPanel";
 import { KmDriven } from "@/components/KmDriven";
 import { loadHistory } from "@/lib/history";
+import { Tip } from "@/components/Tip";
 
 const QN = ["Jul – Sep", "Oct – Dec", "Jan – Mar", "Apr – Jun"];
 
@@ -83,7 +84,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
         <Link href="/bas" className="card-wash rise rise-2 group flex flex-col justify-between lg:col-span-2">
           <div className="flex items-start justify-between">
             <div>
-              <p className="eyebrow">This quarter · Q{cq + 1}</p>
+              <p className="eyebrow flex items-center gap-2">This quarter · Q{cq + 1}<Tip k="basCard" align="left" /></p>
               <p className="mt-1 text-sm text-mute">BAS due {BAS_DUE[cq]}</p>
             </div>
             <Icon name="chevron" className="text-mute transition group-hover:translate-x-0.5 group-hover:text-ink" />
@@ -104,7 +105,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
         <section className="card rise rise-2 lg:col-span-3">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h2 className="h2">Income vs expenses</h2>
+              <h2 className="h2 flex items-center gap-2">Income vs expenses<Tip k="incomeVsExpenses" align="left" /></h2>
               <p className="muted">By quarter, excluding GST</p>
             </div>
             <div className="text-right">
@@ -128,7 +129,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
         <section className="card rise rise-3 lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="h2">Where your money goes</h2>
+              <h2 className="h2 flex items-center gap-2">Where your money goes<Tip k="moneyGoes" align="left" /></h2>
               <p className="muted">Deductible expenses this year</p>
             </div>
             <Link href="/expenses" className="btn-ghost shrink-0">Expenses<Icon name="chevron" size={16} /></Link>
@@ -152,7 +153,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
         <div className="flex items-center gap-4 lg:flex-1">
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-black text-white"><Icon name="tax" /></span>
           <div>
-            <h2 className="h2">Reports for lodging</h2>
+            <h2 className="h2 flex items-center gap-2">Reports for lodging<Tip k="reports" align="left" /></h2>
             <p className="muted">PDFs laid out the way the ATO asks: BAS labels each quarter, and the business schedule (P8) for your tax return.</p>
           </div>
         </div>
@@ -189,7 +190,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
 
       <div className="grid gap-4 lg:grid-cols-5">
         <section className="card rise rise-3 lg:col-span-3">
-          <h2 className="h2 mb-2">Quarters</h2>
+          <h2 className="h2 mb-2 flex items-center gap-2">Quarters<Tip k="quarters" align="left" /></h2>
           <ul>
             {s.bas.map((b, i) => (
               <li key={i}>

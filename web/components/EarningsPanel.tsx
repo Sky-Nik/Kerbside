@@ -4,6 +4,8 @@ import { bucketOf, inBucket, series, shift, type Bucket, type View } from "@/lib
 import { Icon } from "./Icon";
 import { PlatformTile } from "./PlatformTile";
 import { PeriodSelect } from "./PeriodSelect";
+import { Tip } from "./Tip";
+import { HELP } from "@/lib/help";
 
 export type EarningEntry = { start_date: string; platform: string; lines: Record<string, number> };
 export type PastYear = { fy: string; net: number; gross: number; expenses: number; wages: number; source: string };
@@ -62,7 +64,7 @@ export function EarningsPanel({ view, at, today, entries, expenses, pastYears, f
     <section className="card-ink rise rise-1 relative overflow-hidden lg:col-span-3">
       <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full border-[40px] border-white/[0.04]" />
       <div className="relative flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-medium text-white/60">Your earnings <span className="text-white/40">· Today, {todayLabel}</span></p>
+        <p className="flex items-center gap-2 text-sm font-medium text-white/60">Your earnings<Tip k="earnings" text={view === "year" ? `${HELP.earnings} ${HELP.earningsPast}` : undefined} align="left" /><span className="text-white/40">· Today, {todayLabel}</span></p>
         <div className="inline-flex gap-1 rounded-full bg-white/10 p-1">
           {VIEWS.map(([v, l]) => (
             <Link key={v} href={href(v, bucketOf(v, sel.start > today ? today : sel.start))} scroll={false}

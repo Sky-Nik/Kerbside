@@ -8,6 +8,7 @@ import { IncomeForm } from "@/components/IncomeForm";
 import { ImportDocument } from "@/components/ImportDocument";
 import { Icon } from "@/components/Icon";
 import { PlatformTile } from "@/components/PlatformTile";
+import { Tip } from "@/components/Tip";
 
 type Entry = { id: string; start_date: string; end_date: string; platform: string; lines: Record<string, number>; fees: Record<string, number> };
 
@@ -64,10 +65,10 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
       </div>
 
       <section className="card rise rise-2 mb-8">
-        <h2 className="h2 mb-4">Add earnings</h2>
+        <h2 className="h2 mb-4 flex items-center gap-2">Add earnings<Tip k="addEarnings" align="left" /></h2>
         <IncomeForm defaultFrom={defaultFrom} platforms={platforms} />
         <details className="mt-6 border-t border-wash-2 pt-4">
-          <summary className="cursor-pointer text-sm font-medium">Missed some weeks? Import a monthly tax summary (PDF)</summary>
+          <summary className="cursor-pointer text-sm font-medium">Missed some weeks? Import a monthly tax summary (PDF) <Tip k="importSummary" /></summary>
           <div className="mt-3"><ImportDocument intro="Upload a monthly Uber tax summary. Kerbside reads the amounts, you check the dates, and it’s added as income." /></div>
         </details>
       </section>
@@ -75,7 +76,7 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
       {overlaps.size > 0 && (
         <div className="mb-6 flex items-start gap-3 rounded-2xl bg-[#fff8e6] p-4 text-sm ring-1 ring-warn">
           <Icon name="alert" size={18} className="mt-0.5 shrink-0" />
-          <p>Some entries for the same platform have overlapping dates (marked below), so that income may be counted twice. If they’re duplicates, delete one.</p>
+          <p><Tip k="overlap" align="left" className="mr-1" /> Some entries for the same platform have overlapping dates (marked below), so that income may be counted twice. If they’re duplicates, delete one.</p>
         </div>
       )}
 

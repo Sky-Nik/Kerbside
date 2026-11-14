@@ -5,6 +5,7 @@ import { INCOME_LINES, addDays } from "@/lib/tax";
 import { Icon } from "./Icon";
 import { PlatformTile } from "./PlatformTile";
 import { netLabel, PLATFORM_INFO, type PlatformName } from "@/lib/platforms";
+import { Tip } from "./Tip";
 
 /** One entry = one platform's earnings between two dates (usually a Monday–Sunday week). */
 export function IncomeForm({ defaultFrom, platforms }: { defaultFrom: string; platforms: string[] }) {
@@ -33,17 +34,18 @@ export function IncomeForm({ defaultFrom, platforms }: { defaultFrom: string; pl
       }}
     >
       <input type="hidden" name="platform" value={platform} />
-      <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Platform">
+      <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Platform">
         {platforms.map((p) => (
           <button key={p} type="button" role="radio" aria-checked={platform === p} onClick={() => setPlatform(p)}
             className={`flex items-center gap-2 rounded-full py-1 pr-4 pl-1 text-sm font-medium ring-2 transition ${platform === p ? "bg-white ring-ink" : "bg-wash ring-transparent hover:bg-wash-2"}`}>
             <PlatformTile name={p} size={30} />{p}
           </button>
         ))}
+        <Tip k="platformPick" />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        <label className="field">From
+        <label className="field"><span className="flex items-center gap-1.5">From<Tip k="fromTo" align="left" /></span>
           <input name="from" type="date" required value={from}
             onChange={(e) => {
               const v = e.currentTarget.value;
@@ -55,11 +57,11 @@ export function IncomeForm({ defaultFrom, platforms }: { defaultFrom: string; pl
           <input name="to" type="date" required min={from} value={to} onChange={(e) => setTo(e.currentTarget.value)} />
         </label>
         {INCOME_LINES.map((l) => (
-          <label key={l} className="field">{l === "Net fare" ? netLabel(platform) : l}
+          <label key={l} className="field"><span className="flex items-center gap-1.5">{l === "Net fare" ? netLabel(platform) : l}<Tip k={l === "Net fare" ? "netFare" : l === "Promotions" ? "promotions" : "tips"} /></span>
             <input name={`line:${l}`} type="number" step="0.01" inputMode="decimal" placeholder="0.00" />
           </label>
         ))}
-        <label className="field"><span>Service fee <span className="text-[11px] font-normal text-mute">recommended</span></span>
+        <label className="field"><span className="flex items-center gap-1.5">Service fee <span className="text-[11px] font-normal text-mute">recommended</span><Tip k="serviceFee" align="right" /></span>
           <input name="fee:Service fees" type="number" step="0.01" inputMode="decimal" placeholder="0.00" />
         </label>
       </div>

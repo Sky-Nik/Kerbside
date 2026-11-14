@@ -5,6 +5,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { CATEGORIES } from "@/lib/tax";
 import { attachReceipt } from "./receipt";
 import { Icon } from "./Icon";
+import { Tip } from "./Tip";
 
 export function ExpenseForm({ min, max, defaultDate }: { min: string; max: string; defaultDate: string }) {
   const router = useRouter();
@@ -52,7 +53,7 @@ export function ExpenseForm({ min, max, defaultDate }: { min: string; max: strin
         <label className="field">Date<input name="date" type="date" required min={min} max={max} defaultValue={defaultDate} /></label>
         <label className="field">Receipt total incl GST<input name="amount" type="number" step="0.01" inputMode="decimal" required placeholder="0.00" /></label>
         <label className="field sm:col-span-2">Supplier / description<input name="description" placeholder="e.g. Ampol fuel" /></label>
-        <label className="field sm:col-span-2">Category
+        <label className="field sm:col-span-2"><span className="flex items-center gap-1.5">Category<Tip k="category" align="left" /></span>
           <select name="category" required defaultValue="">
             <option value="" disabled>Choose a category</option>
             {CATEGORIES.map((c) => <option key={c.name}>{c.name}</option>)}
@@ -70,7 +71,7 @@ export function ExpenseForm({ min, max, defaultDate }: { min: string; max: strin
         <span className={`relative text-sm font-medium ${preview ? "rounded-full bg-black px-3 py-1 text-white" : ""}`}>
           {file ? file.name.slice(0, 28) : "Add receipt photo or PDF"}
         </span>
-        {!file && <span className="relative text-xs text-mute">Snap it with your phone camera · max 10 MB</span>}
+        {!file && <span className="relative flex items-center gap-1.5 text-xs text-mute">Snap it with your phone camera · max 10 MB<Tip k="receipt" /></span>}
         <input type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => pick(e.currentTarget.files?.[0] ?? null)} />
       </label>
 

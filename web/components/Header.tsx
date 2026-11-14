@@ -7,6 +7,7 @@ import { AutoSubmitSelect } from "./AutoSubmitSelect";
 import { BottomNav, TopNav } from "./Nav";
 import { Icon } from "./Icon";
 import { Logo } from "./Logo";
+import { HELP, NAV_HELP } from "@/lib/help";
 
 export async function Header() {
   const { data } = await (await supabaseServer()).auth.getUser();
@@ -20,12 +21,12 @@ export async function Header() {
           <TopNav />
           <div className="ml-auto flex items-center gap-1">
             <form action={setFy}>
-              <AutoSubmitSelect name="fy" defaultValue={fy} aria-label="Financial year"
+              <AutoSubmitSelect name="fy" defaultValue={fy} aria-label="Financial year" title={HELP.fy}
                 options={fyOptions(fy).map((y) => ({ value: y, label: `FY ${y}` }))} />
             </form>
-            <Link href="/documents" className="grid h-9 w-9 place-items-center rounded-full text-white/80 hover:bg-white/10 lg:hidden" aria-label="Documents"><Icon name="folder" /></Link>
-            <Link href="/logbook" className="grid h-9 w-9 place-items-center rounded-full text-white/80 hover:bg-white/10 lg:hidden" aria-label="Logbook"><Icon name="car" /></Link>
-            <Link href="/settings" className="grid h-9 w-9 place-items-center rounded-full text-white/80 hover:bg-white/10 lg:hidden" aria-label="Settings"><Icon name="gear" /></Link>
+            <Link href="/documents" className="grid h-9 w-9 place-items-center rounded-full text-white/80 hover:bg-white/10 lg:hidden" aria-label="Documents" title={NAV_HELP["/documents"]}><Icon name="folder" /></Link>
+            <Link href="/logbook" className="grid h-9 w-9 place-items-center rounded-full text-white/80 hover:bg-white/10 lg:hidden" aria-label="Logbook" title={NAV_HELP["/logbook"]}><Icon name="car" /></Link>
+            <Link href="/settings" className="grid h-9 w-9 place-items-center rounded-full text-white/80 hover:bg-white/10 lg:hidden" aria-label="Settings" title={NAV_HELP["/settings"]}><Icon name="gear" /></Link>
             <form action={signOut}>
               <button className="grid h-9 w-9 place-items-center rounded-full text-white/80 hover:bg-white/10" aria-label="Sign out" title="Sign out"><Icon name="out" size={18} /></button>
             </form>

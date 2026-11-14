@@ -7,6 +7,7 @@ import { PageHead, QuarterTabs } from "@/components/QuarterTabs";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { AttachReceipt } from "@/components/AttachReceipt";
 import { Icon } from "@/components/Icon";
+import { Tip } from "@/components/Tip";
 
 export default async function Expenses({ searchParams }: PageProps<"/expenses">) {
   const { supabase } = await requireUser();
@@ -41,12 +42,14 @@ export default async function Expenses({ searchParams }: PageProps<"/expenses">)
 
       <div className="rise rise-1 mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map(([k, v]) => (
-          <div key={k} className="card-wash py-4"><p className="text-xs text-mute">{k}</p><p className="mt-1 text-xl font-bold tabular-nums">{v}</p></div>
+          <div key={k} className="card-wash py-4"><p className="flex items-center gap-1.5 text-xs text-mute">{k}
+            {k === "GST credits" && <Tip k="gstCredit" align="left" />}{k === "Deductible" && <Tip k="deductible" align="left" />}
+            {k === "Receipts" && <Tip k="receipt" align="right" />}{k === "Spent incl GST" && <Tip text="Total of every receipt this quarter, before your business-use % is applied." align="left" />}</p><p className="mt-1 text-xl font-bold tabular-nums">{v}</p></div>
         ))}
       </div>
 
       <section className="card rise rise-2 mb-8">
-        <h2 className="h2 mb-4">Add an expense</h2>
+        <h2 className="h2 mb-4 flex items-center gap-2">Add an expense<Tip k="addExpense" align="left" /></h2>
         <ExpenseForm min={start} max={end} defaultDate={today >= start && today <= end ? today : start} />
       </section>
 
