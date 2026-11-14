@@ -398,3 +398,25 @@ export function estimateTax(fy: string, businessProfit: number, inp: TaxInputs) 
     lossDeferred: businessProfit < 0 ? round2(-businessProfit) : 0,
   };
 }
+
+// ---------- "set aside for tax" ----------
+/** Tax on the next dollar earned: income tax bracket + Medicare levy (10% in the low-income shade-in band). */
+export function marginalRate(taxable: number, fy: string): number {
+  const br = RATES[fy] ?? RATES["2026-27"];
+  const income = br.find(([upper]) => taxable <= upper)?.[1] ?? 0.45;
+  const [low, high] = MEDICARE_LOW[fy] ?? MEDICARE_LOW["2025-26"];
+  const medicare = taxable <= low ? 0 : taxable <= high ? 0.1 : 0.02;
+  return round2(income + medicare);
+}
+
+/**
+ * How much to put aside from a period's earnings: the GST you'll owe on them (GST on sales less GST credits
+ * on platform fees and expenses) plus income tax at your projected marginal rate on the period's profit.
+ * ponytail: marginal-rate estimate ignores offsets (LITO, small business offset), so it errs on setting aside a little more.
+ */
+export function setAside(p: { gstOnSales: number; gstCredits: number; profitExGst: number; projectedTaxable: number; fy: string }) {
+  const gst = round2(Math.max(0, p.gstOnSales - p.gstCredits));
+  const rate = marginalRate(p.projectedTaxable, p.fy);
+  const tax = round2(Math.max(0, p.profitExGst) * rate);
+  return { gst, tax, rate, total: round2(gst + tax) };
+}

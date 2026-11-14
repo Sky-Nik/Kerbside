@@ -10,7 +10,7 @@ import { Icon } from "@/components/Icon";
 import { PlatformTile } from "@/components/PlatformTile";
 import { Tip } from "@/components/Tip";
 
-type Entry = { id: string; start_date: string; end_date: string; platform: string; lines: Record<string, number>; fees: Record<string, number> };
+type Entry = { id: string; start_date: string; end_date: string; platform: string; lines: Record<string, number>; fees: Record<string, number>; hours: number | null };
 
 export default async function Income({ searchParams }: PageProps<"/income">) {
   const { supabase } = await requireUser();
@@ -22,7 +22,7 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
   const qEnd = new Date(Date.UTC(Number(months[2].slice(0, 4)), Number(months[2].slice(5, 7)), 0)).toISOString().slice(0, 10);
   const [year, { data, error }] = await Promise.all([
     loadYear(supabase, fy),
-    supabase.from("income_entries").select("id,start_date,end_date,platform,lines,fees")
+    supabase.from("income_entries").select("id,start_date,end_date,platform,lines,fees,hours")
       .gte("start_date", qStart).lte("start_date", qEnd).order("start_date", { ascending: false }).order("platform"),
   ]);
   if (error) throw new Error(error.message);
@@ -110,7 +110,8 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
                             {overlaps.has(r.id) && <span className="pill ml-2 bg-[#fff8e6] text-ink ring-1 ring-warn">Overlaps</span>}
                           </span>
                           <span className="block truncate text-[13px] text-mute">
-                            {INCOME_LINES.filter((l) => Number(r.lines[l])).map((l) => `${l} ${aud(Number(r.lines[l]))}`).concat(Number(r.fees?.["Service fees"]) ? [`Service fee ${aud(Number(r.fees["Service fees"]))}`] : []).join(" · ") || "No amounts"}
+                            {INCOME_LINES.filter((l) => Number(r.lines[l])).map((l) => `${l} ${aud(Number(r.lines[l]))}`).concat(Number(r.fees?.["Service fees"]) ? [`Service fee ${aud(Number(r.fees["Service fees"]))}`] : [])
+                              .concat(Number(r.hours) ? [`${r.hours} h · ${aud(r.sales / Number(r.hours))}/h`] : []).join(" · ") || "No amounts"}
                           </span>
                         </span>
                         <span className="font-bold tabular-nums">{aud(r.sales)}</span>

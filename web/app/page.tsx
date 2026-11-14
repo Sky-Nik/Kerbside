@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear, loadYearData, pickQuarter, requirePlatforms } from "@/lib/data";
-import { BAS_DUE, fyRange, summarise, todayAu } from "@/lib/tax";
+import { BAS_DUE, addDays, expenseCalc, fyRange, quarterOf, summarise, todayAu } from "@/lib/tax";
+import { generateRecurring } from "@/lib/recurring";
+import { buildReminders } from "@/lib/reminders";
 import { aud } from "@/lib/fmt";
 import { Icon } from "@/components/Icon";
 import { CategoryBars, IncomeExpenseChart } from "@/components/Charts";
@@ -14,7 +16,8 @@ const QN = ["Jul – Sep", "Oct – Dec", "Jan – Mar", "Apr – Jun"];
 
 export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const { supabase } = await requireUser();
-  await requirePlatforms(supabase);
+  const platforms = await requirePlatforms(supabase);
+  await generateRecurring(supabase, todayAu()); // add recurring expenses that have come due
   const fy = await getFy();
   const [year, data] = await Promise.all([loadYear(supabase, fy), loadYearData(supabase, fy)]);
   const s = summarise(year, data);
@@ -48,8 +51,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const today = todayAu();
   const at = typeof sp.at === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.at) ? sp.at : today;
   const [{ data: allEntries }, { data: allExpenses }] = await Promise.all([
-    supabase.from("income_entries").select("start_date,platform,lines"),
-    supabase.from("expenses").select("date,amount"),
+    supabase.from("income_entries").select("start_date,platform,lines,fees,hours,km"),
+    supabase.from("expenses").select("date,amount,category"),
   ]);
   // Past years: net income from the lodged return (net business + wages; some years platforms were lodged as wages).
   // Kilometres for the km card: odometer readings if both are entered, else what's in the logbook
@@ -59,6 +62,22 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const kmSource = odoKm ? "From your odometer readings" : "Logged in your logbook";
   const { data: kmRows } = await supabase.from("income_entries").select("km").not("km", "is", null).gte("start_date", start).lte("start_date", end);
   const platformKm = Math.round((kmRows ?? []).reduce((t, r) => t + Number(r.km), 0));
+  // Expenses with their GST credit and deductible amount (business-use % from this year's settings)
+  const spendItems = (allExpenses ?? []).map((x) => {
+    const c = expenseCalc(Number(x.amount), x.category, year.pct, quarterOf(x.date), year.gst_registered);
+    return { date: x.date, amount: Number(x.amount), gst: c.gst, deductible: c.deductible };
+  });
+  // Projected taxable income for the year, for the "put aside" marginal rate: business profit so far, annualised, plus other income
+  const { data: profile } = await supabase.from("profiles").select("weekly_goal,monthly_goal").maybeSingle();
+  const daysIn = Math.max(1, Math.round((Date.parse(today) - Date.parse(start)) / 86400000) + 1);
+  const projectedTaxable = Math.max(0, (t.profit / Math.min(daysIn, 365)) * 365) + (Number(year.wages) || 0) + (Number(year.other_income) || 0);
+  // Reminders: next BAS, missing week, logbook check-in, renewals
+  const [{ data: remEntries }, { data: remTrips }, { data: remRecurring }] = await Promise.all([
+    supabase.from("income_entries").select("platform,start_date,end_date").gte("end_date", addDays(today, -21)),
+    supabase.from("trips").select("date,end_date").gte("date", start),
+    supabase.from("recurring_expenses").select("description,category,frequency,start_date,end_date"),
+  ]);
+  const reminders = buildReminders({ today, platforms, entries: remEntries ?? [], trips: remTrips ?? [], recurring: remRecurring ?? [] });
   const pastYears = history.filter((h) => h.source !== "Kerbside (this year)")
     .map((h) => ({ fy: h.fy, net: h.net, gross: h.business, expenses: h.expenses, wages: h.wages, source: h.source }));
 
@@ -77,8 +96,9 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
 
       <div className="grid gap-4 lg:grid-cols-5">
         <EarningsPanel view={view} at={at} today={today} entries={allEntries ?? []}
-          expenses={(allExpenses ?? []).map((x) => ({ date: x.date, amount: Number(x.amount) }))}
-          pastYears={pastYears} fyProfit={{ fy, profit: t.profit }} />
+          expenses={spendItems} pastYears={pastYears} fyProfit={{ fy, profit: t.profit }}
+          registered={year.gst_registered} projectedTaxable={projectedTaxable}
+          goals={{ week: profile?.weekly_goal ?? null, month: profile?.monthly_goal ?? null }} />
 
         {/* Current BAS */}
         <Link href="/bas" className="card-wash rise rise-2 group flex flex-col justify-between lg:col-span-2">
@@ -168,6 +188,28 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           </Link>
         </div>
       </section>
+
+      {reminders.length > 0 && (
+        <section className="card rise rise-2">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="h2 flex items-center gap-2">Reminders<Tip k="reminders" align="left" /></h2>
+            <a href="/api/calendar" className="btn-secondary btn-sm"><Icon name="plus" size={14} />Add to my calendar</a>
+          </div>
+          <ul className="divide-y divide-wash-2">
+            {reminders.map((r) => (
+              <li key={r.key}>
+                <Link href={r.href} className="group -mx-2 flex items-center gap-3 rounded-xl px-2 py-3 hover:bg-wash">
+                  <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${r.tone === "warn" ? "bg-warn text-black" : "bg-wash-2"}`}>
+                    <Icon name={r.key === "bas" ? "bas" : r.key === "logbook" ? "car" : r.key === "earnings" ? "income" : "receipt"} size={17} />
+                  </span>
+                  <span className="min-w-0 flex-1"><span className="block text-sm font-medium">{r.title}</span><span className="block text-[13px] text-mute">{r.detail}</span></span>
+                  <Icon name="chevron" size={16} className="text-mute-2 group-hover:text-ink" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {(noPct || !!missing) && (
         <div className="rise rise-3 grid gap-3 sm:grid-cols-2">

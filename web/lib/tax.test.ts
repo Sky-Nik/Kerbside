@@ -1,7 +1,7 @@
 // Run: npm test   (node's built-in test runner; same scenario was verified in the Excel workbook)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { carPurchaseGst, daysOwned, estimateTax, incomeTax, lowIncomeOffset, medicareLevy, overlappingIds, round2, fyOf, logbook, mondayOf, monthsOf, quarterOf, summarise, type YearSettings } from "./tax.ts";
+import { carPurchaseGst, daysOwned, estimateTax, marginalRate, setAside, incomeTax, lowIncomeOffset, medicareLevy, overlappingIds, round2, fyOf, logbook, mondayOf, monthsOf, quarterOf, summarise, type YearSettings } from "./tax.ts";
 
 const year: YearSettings = {
   fy: "2026-27", gst_registered: true, car_method: "logbook",
@@ -157,4 +157,13 @@ test("income tax estimate uses ATO 2026-27 rates, offsets and Medicare levy", ()
   const l = estimateTax("2026-27", -3000, { wages: 40000, taxWithheld: 0, paygInstalments: 0, otherIncome: 0, otherDeductions: 0 });
   assert.equal(l.taxable, 40000);
   assert.equal(l.lossDeferred, 3000);
+});
+
+test("set aside: GST owed plus tax at the projected marginal rate", () => {
+  assert.equal(marginalRate(20000, "2026-27"), 0.15); // below the Medicare levy threshold
+  assert.equal(marginalRate(30000, "2026-27"), 0.25); // 15% + 10% Medicare shade-in
+  assert.equal(marginalRate(60000, "2026-27"), 0.32); // 30% + 2%
+  assert.equal(marginalRate(10000, "2026-27"), 0);
+  const s = setAside({ gstOnSales: 100, gstCredits: 20, profitExGst: 800, projectedTaxable: 60000, fy: "2026-27" });
+  assert.deepEqual(s, { gst: 80, tax: 256, rate: 0.32, total: 336 });
 });

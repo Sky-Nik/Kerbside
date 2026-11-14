@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear } from "@/lib/data";
 import { PCT_LABELS, logbook, fyRange, type PctKey } from "@/lib/tax";
 import { pct } from "@/lib/fmt";
-import { saveSettings } from "@/app/actions";
+import { saveGoals, saveSettings } from "@/app/actions";
 import { PageHead } from "@/components/QuarterTabs";
 import { PlatformPicker } from "@/components/PlatformPicker";
 import { DataTools } from "@/components/DataTools";
@@ -42,6 +42,14 @@ export default async function Settings() {
           submitLabel="Save platforms"
         />
       </section>
+      <form action={saveGoals} className="card rise mb-6">
+        <h2 className="h2 mb-4 flex items-center gap-2">Earnings goals<Tip k="goals" align="left" /></h2>
+        <div className="grid items-end gap-3 sm:grid-cols-3">
+          <label className="field">Weekly goal ($)<input name="weekly_goal" type="number" step="1" min="0" defaultValue={profile?.weekly_goal ?? ""} placeholder="e.g. 1200" /></label>
+          <label className="field">Monthly goal ($)<input name="monthly_goal" type="number" step="1" min="0" defaultValue={profile?.monthly_goal ?? ""} placeholder="e.g. 5000" /></label>
+          <button className="btn-secondary h-11">Save goals</button>
+        </div>
+      </form>
       <form action={saveSettings} className="space-y-6">
         <input type="hidden" name="fy" value={fy} />
 

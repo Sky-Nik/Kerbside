@@ -24,6 +24,11 @@ export const HELP = {
   moneyGoes: "Your deductible expenses grouped by category, biggest first, so you can see what costs you most.",
   reports: "Ready-to-lodge PDFs. Preview in the browser, then download from the preview.",
   quarters: "Each BAS quarter’s sales, profit and GST. Tap one to see its income.",
+  recurring: "Set up a cost once and Kerbside adds it on every due date, so nothing gets missed. Stopping keeps the ones already added.",
+  reminders: "Things that need doing soon: BAS due dates, weeks without earnings, logbook check-ins and renewals. Add them to your phone’s calendar too.",
+  setAside: "Move this into a separate savings account so the BAS and tax bills aren’t a shock. GST you collected, plus income tax at the rate you’re heading for this year.",
+  hours: "Hours logged in to the app for these dates (in the app’s earnings or activity screen). Used to work out your real hourly rate.",
+  goals: "A target for each week or month. Progress shows on the dashboard.",
   km: "Kilometres driven this year from your odometer readings or logbook. Tap to open the logbook.",
 
   // Income

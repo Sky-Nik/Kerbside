@@ -27,7 +27,7 @@ export function IncomeForm({ defaultFrom, platforms }: { defaultFrom: string; pl
           const added = INCOME_LINES.reduce((s, l) => s + (Number(f.get(`line:${l}`)) || 0), 0);
           setMsg(`Added $${added.toFixed(2)}`);
           // keep the dates (handy for entering the other platform for the same week), clear the amounts
-          form.current?.querySelectorAll<HTMLInputElement>("input[name^='line:']").forEach((i) => (i.value = ""));
+          form.current?.querySelectorAll<HTMLInputElement>("input[name^='line:'], input[name^='fee:'], input[name='hours']").forEach((i) => (i.value = ""));
         } catch (e) {
           setMsg((e as Error).message);
         }
@@ -44,7 +44,7 @@ export function IncomeForm({ defaultFrom, platforms }: { defaultFrom: string; pl
         <Tip k="platformPick" />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="field"><span className="flex items-center gap-1.5">From<Tip k="fromTo" align="left" /></span>
           <input name="from" type="date" required value={from}
             onChange={(e) => {
@@ -61,6 +61,9 @@ export function IncomeForm({ defaultFrom, platforms }: { defaultFrom: string; pl
             <input name={`line:${l}`} type="number" step="0.01" inputMode="decimal" placeholder="0.00" />
           </label>
         ))}
+        <label className="field"><span className="flex items-center gap-1.5">Hours online <span className="text-[11px] font-normal text-mute">optional</span><Tip k="hours" /></span>
+          <input name="hours" type="number" step="0.1" min="0" inputMode="decimal" placeholder="0" />
+        </label>
         <label className="field"><span className="flex items-center gap-1.5">Service fee <span className="text-[11px] font-normal text-mute">recommended</span><Tip k="serviceFee" align="right" /></span>
           <input name="fee:Service fees" type="number" step="0.01" inputMode="decimal" placeholder="0.00" />
         </label>

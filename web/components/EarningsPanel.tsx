@@ -6,8 +6,10 @@ import { PlatformTile } from "./PlatformTile";
 import { PeriodSelect } from "./PeriodSelect";
 import { Tip } from "./Tip";
 import { HELP } from "@/lib/help";
+import { fyOf, platformMonth, setAside } from "@/lib/tax";
 
-export type EarningEntry = { start_date: string; platform: string; lines: Record<string, number> };
+export type EarningEntry = { start_date: string; platform: string; lines: Record<string, number>; fees?: Record<string, number> | null; hours?: number | null; km?: number | null };
+export type SpendItem = { date: string; amount: number; gst: number; deductible: number };
 export type PastYear = { fy: string; net: number; gross: number; expenses: number; wages: number; source: string };
 
 const VIEWS: [View, string][] = [["week", "Week"], ["month", "Month"], ["year", "Year"]];
@@ -19,9 +21,10 @@ const earned = (e: EarningEntry) => Object.values(e.lines ?? {}).reduce((s, v) =
  * Earnings = what the platforms paid you (net fare + promotions + tips), counted by each entry's start date.
  * Years with no entries fall back to business income from an uploaded tax return / annual summary.
  */
-export function EarningsPanel({ view, at, today, entries, expenses, pastYears, fyProfit }: {
-  view: View; at: string; today: string; entries: EarningEntry[]; expenses: { date: string; amount: number }[];
-  pastYears: PastYear[]; fyProfit: { fy: string; profit: number };
+export function EarningsPanel({ view, at, today, entries, expenses, pastYears, fyProfit, registered, projectedTaxable, goals }: {
+  view: View; at: string; today: string; entries: EarningEntry[]; expenses: SpendItem[];
+  pastYears: PastYear[]; fyProfit: { fy: string; profit: number }; registered: boolean; projectedTaxable: number;
+  goals: { week: number | null; month: number | null };
 }) {
   const sel = bucketOf(view, at);
   const now = bucketOf(view, today);
@@ -48,10 +51,29 @@ export function EarningsPanel({ view, at, today, entries, expenses, pastYears, f
   const byPlatform = [...new Set(rows.map((e) => e.platform))]
     .map((p) => ({ p, v: rows.filter((e) => e.platform === p).reduce((s, e) => s + earned(e), 0) }))
     .sort((a, b) => b.v - a.v);
-  const spent = expenses.filter((x) => inBucket(sel, x.date)).reduce((s, x) => s + Number(x.amount), 0);
+  const spent = expenses.filter((x) => inBucket(sel, x.date)).reduce((t, x) => t + Number(x.amount), 0);
   const prev = total(shift(view, sel, -1)).amount;
   const change = prev > 0 ? (cur.amount - prev) / prev : null;
   const canNext = shift(view, sel, 1).start <= now.start;
+
+  // Set aside for tax (current financial year only; past years are already settled)
+  const inThisFy = !cur.from && fyOf(sel.start) === fyOf(today) && sel.start <= today;
+  const calcs = rows.map((e) => platformMonth(e.platform, e.lines, e.fees ?? {}, registered));
+  const spend = expenses.filter((x) => inBucket(sel, x.date));
+  const aside = setAside({
+    gstOnSales: calcs.reduce((t, c) => t + c.gst, 0),
+    gstCredits: calcs.reduce((t, c) => t + c.feeGst, 0) + spend.reduce((t, x) => t + x.gst, 0),
+    profitExGst: calcs.reduce((t, c) => t + c.net - c.feeNet, 0) - spend.reduce((t, x) => t + x.deductible, 0),
+    projectedTaxable, fy: fyProfit.fy,
+  });
+  // Real hourly rate and $/km, from entries that recorded hours / km
+  const withHours = rows.filter((e) => Number(e.hours) > 0);
+  const hours = withHours.reduce((t, e) => t + Number(e.hours), 0);
+  const perHour = hours ? withHours.reduce((t, e) => t + earned(e), 0) / hours : null;
+  const withKm = rows.filter((e) => Number(e.km) > 0);
+  const kmTotal = withKm.reduce((t, e) => t + Number(e.km), 0);
+  const perKm = kmTotal ? withKm.reduce((t, e) => t + earned(e), 0) / kmTotal : null;
+  const goal = view === "week" ? goals.week : view === "month" ? goals.month : null;
 
   // Dropdown: newest first – a year of weeks, two years of months, or every year on record.
   const optionBuckets = (view === "year" ? bars : series(view, now, view === "week" ? 52 : 24)).slice().reverse();
@@ -100,6 +122,31 @@ export function EarningsPanel({ view, at, today, entries, expenses, pastYears, f
               <PlatformTile name={p} size={24} /><b className="tabular-nums">{aud(v)}</b>
             </span>
           ))}
+        </div>
+      )}
+
+      {goal ? (
+        <div className="relative mt-4">
+          <div className="flex justify-between text-xs text-white/60"><span>{view === "week" ? "Weekly" : "Monthly"} goal {aud(goal)}</span>
+            <span>{cur.amount >= goal ? "Goal reached 🎉" : `${aud(goal - cur.amount)} to go`}</span></div>
+          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-warn" style={{ width: `${Math.min(100, (cur.amount / goal) * 100)}%` }} /></div>
+        </div>
+      ) : null}
+
+      {(perHour != null || perKm != null) && (
+        <div className="relative mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+          {perHour != null && <span><b className="tabular-nums">{aud(perHour)}</b><span className="text-white/60"> /hour · {hours.toLocaleString("en-AU")} h online</span></span>}
+          {perKm != null && <span><b className="tabular-nums">{aud(perKm)}</b><span className="text-white/60"> /km on trip</span></span>}
+        </div>
+      )}
+
+      {inThisFy && aside.total > 0 && (
+        <div className="relative mt-4 flex items-center gap-3 rounded-xl bg-warn px-4 py-3 text-black">
+          <div className="flex-1">
+            <p className="flex items-center gap-2 text-xs font-medium">Put aside for tax<Tip k="setAside" align="left" /></p>
+            <p className="text-2xl font-bold tabular-nums">{aud(aside.total)}</p>
+          </div>
+          <p className="text-right text-xs">GST {aud(aside.gst)}<br />Income tax {aud(aside.tax)} <span className="opacity-60">({Math.round(aside.rate * 100)}%)</span></p>
         </div>
       )}
 

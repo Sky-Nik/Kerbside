@@ -1,8 +1,9 @@
 import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear, pickQuarter } from "@/lib/data";
-import { expenseCalc, monthsOf, todayAu } from "@/lib/tax";
+import { CATEGORIES, expenseCalc, monthsOf, todayAu } from "@/lib/tax";
+import { FREQUENCIES, generateRecurring, nextDue } from "@/lib/recurring";
 import { aud, auDate, pct } from "@/lib/fmt";
-import { deleteExpense } from "@/app/actions";
+import { addRecurring, deleteExpense, stopRecurring } from "@/app/actions";
 import { PageHead, QuarterTabs } from "@/components/QuarterTabs";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { AttachReceipt } from "@/components/AttachReceipt";
@@ -16,6 +17,8 @@ export default async function Expenses({ searchParams }: PageProps<"/expenses">)
   const months = monthsOf(fy, q);
   const start = months[0];
   const end = new Date(Date.UTC(Number(months[2].slice(0, 4)), Number(months[2].slice(5, 7)), 0)).toISOString().slice(0, 10);
+  await generateRecurring(supabase, todayAu()); // add any recurring expenses that have come due
+  const { data: recurring } = await supabase.from("recurring_expenses").select("*").order("created_at");
   const [year, { data, error }] = await Promise.all([
     loadYear(supabase, fy),
     supabase.from("expenses").select("*").gte("date", start).lte("date", end).order("date", { ascending: false }).order("created_at", { ascending: false }),
@@ -53,6 +56,47 @@ export default async function Expenses({ searchParams }: PageProps<"/expenses">)
         <ExpenseForm min={start} max={end} defaultDate={today >= start && today <= end ? today : start} />
       </section>
 
+      <section className="card rise rise-3 mb-8">
+        <h2 className="h2 mb-1 flex items-center gap-2">Recurring expenses<Tip k="recurring" align="left" /></h2>
+        <p className="muted mb-4">Insurance, phone plan, car rental, loan repayments… added automatically on each due date.</p>
+        {(recurring ?? []).length > 0 && (
+          <ul className="mb-5 divide-y divide-wash-2">
+            {(recurring ?? []).map((r) => {
+              const ended = r.end_date && r.end_date < todayAu();
+              const next = ended ? null : nextDue(r.start_date, r.frequency, todayAu(), r.end_date);
+              return (
+                <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-wash-2"><Icon name="receipt" size={18} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium">{r.description} · {aud(Number(r.amount))}</span>
+                    <span className="block text-[13px] text-mute">{FREQUENCIES.find(([f]) => f === r.frequency)?.[1]} · {r.category}
+                      {next ? ` · next ${auDate(next)}` : ended ? ` · stopped ${auDate(r.end_date)}` : ""}</span>
+                  </span>
+                  {!ended && <form action={stopRecurring}><input type="hidden" name="id" value={r.id} /><button className="btn-danger">Stop</button></form>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <form action={addRecurring} className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <label className="field lg:col-span-2">Description<input name="description" required placeholder="e.g. Car insurance" /></label>
+          <label className="field">Amount incl GST<input name="amount" type="number" step="0.01" min="0.01" required placeholder="0.00" /></label>
+          <label className="field">How often
+            <select name="frequency" defaultValue="monthly">{FREQUENCIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+          </label>
+          <label className="field">First payment<input name="start_date" type="date" required defaultValue={todayAu()} /></label>
+          <label className="field"><span>Ends <span className="text-[11px] font-normal text-mute">optional</span></span><input name="end_date" type="date" /></label>
+          <label className="field lg:col-span-3">Category
+            <select name="category" required defaultValue="">
+              <option value="" disabled>Choose a category</option>
+              {CATEGORIES.map((c) => <option key={c.name}>{c.name}</option>)}
+            </select>
+          </label>
+          <button className="btn lg:col-span-1"><Icon name="plus" size={18} />Add recurring</button>
+        </form>
+        <p className="muted mt-3">Past payments from the first payment date are added straight away. Attach receipts to them in the list below.</p>
+      </section>
+
       <section className="rise rise-3">
         <h2 className="mb-2 text-xl font-bold tracking-[-0.01em]">Activity</h2>
         {rows.length === 0 ? (
@@ -70,7 +114,7 @@ export default async function Expenses({ searchParams }: PageProps<"/expenses">)
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{r.description || r.category}</span>
-                  <span className="block truncate text-[13px] text-mute">{auDate(r.date)} · {r.category}</span>
+                  <span className="block truncate text-[13px] text-mute">{auDate(r.date)} · {r.category}{r.recurring_id ? " · recurring" : ""}</span>
                 </span>
                 <span className="order-last flex w-full items-center gap-2 pl-15 sm:order-none sm:w-auto sm:pl-0">
                   {r.receipt_path ? (

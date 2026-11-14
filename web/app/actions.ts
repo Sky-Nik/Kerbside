@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser, supabaseServer } from "@/lib/supabase/server";
 import { getFy, loadYear } from "@/lib/data";
-import { INCOME_LINES, PLATFORMS, PCT_LABELS, daysOwned, type PctKey } from "@/lib/tax";
+import { INCOME_LINES, PLATFORMS, PCT_LABELS, daysOwned, todayAu, type PctKey } from "@/lib/tax";
+import { generateRecurring } from "@/lib/recurring";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const money = (f: FormData, k: string) => {
@@ -43,7 +44,8 @@ export async function saveIncome(f: FormData) {
   // Optional platform service fee: needed so BAS G1/1A use the full fare (ATO), and claimed back at 1B.
   const fees: Record<string, number> = {};
   if (str(f, "fee:Service fees") !== "") fees["Service fees"] = money(f, "fee:Service fees");
-  check((await supabase.from("income_entries").insert({ user_id: user.id, start_date, end_date, platform, lines, fees })).error);
+  const hours = str(f, "hours") === "" ? null : Math.max(0, Number(str(f, "hours")) || 0);
+  check((await supabase.from("income_entries").insert({ user_id: user.id, start_date, end_date, platform, lines, fees, hours })).error);
   done();
 }
 
@@ -190,5 +192,36 @@ export async function deleteDocument(f: FormData) {
   const { data } = await supabase.from("documents").select("storage_path").eq("id", id).maybeSingle();
   if (data?.storage_path) await supabase.storage.from("documents").remove([data.storage_path]);
   check((await supabase.from("documents").delete().eq("id", id)).error);
+  done();
+}
+
+export async function saveGoals(f: FormData) {
+  const { supabase, user } = await requireUser();
+  const val = (k: string) => (str(f, k) === "" ? null : Math.max(0, Number(str(f, k)) || 0));
+  check((await supabase.from("profiles").upsert({ user_id: user.id, weekly_goal: val("weekly_goal"), monthly_goal: val("monthly_goal"),
+    updated_at: new Date().toISOString() })).error);
+  done();
+}
+
+// ---------- Recurring expenses ----------
+export async function addRecurring(f: FormData) {
+  const { supabase } = await requireUser();
+  const frequency = str(f, "frequency");
+  if (!["weekly", "fortnightly", "monthly", "quarterly", "yearly"].includes(frequency)) throw new Error("Pick how often");
+  check((await supabase.from("recurring_expenses").insert({
+    description: str(f, "description"), amount: money(f, "amount"), category: str(f, "category"), frequency,
+    start_date: str(f, "start_date"), end_date: str(f, "end_date") || null,
+  })).error);
+  await generateRecurring(supabase, todayAu());
+  done();
+}
+
+/** Stop a recurring expense from today (past expenses it created are kept). */
+export async function stopRecurring(f: FormData) {
+  const { supabase } = await requireUser();
+  const id = str(f, "id");
+  const { data } = await supabase.from("recurring_expenses").select("start_date").eq("id", id).maybeSingle();
+  const today = todayAu();
+  check((await supabase.from("recurring_expenses").update({ end_date: data && data.start_date > today ? data.start_date : today }).eq("id", id)).error);
   done();
 }
