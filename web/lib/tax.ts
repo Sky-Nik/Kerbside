@@ -201,7 +201,7 @@ export function carPurchaseGst(seller: string | null, gst: number, carLimit: num
   return round2(Math.min(gst, round2(carLimit / 11)) * businessPct);
 }
 
-export type Trip = { odo_start: number; odo_end: number; purpose: string };
+export type Trip = { odo_start: number; odo_end: number; purpose: string; vehicle_id?: string | null };
 export function logbook(trips: Trip[], odoYearStart?: number | null, odoYearEnd?: number | null) {
   const km = { rideshare: 0, other_abn: 0, employment: 0, private: 0 };
   let min = Infinity, max = -Infinity;
@@ -237,10 +237,25 @@ export type YearData = {
   // ponytail: an entry counts in the quarter its start ("From") date falls in.
   incomeEntries: { start_date: string; platform: string; lines: Record<string, unknown>; fees: Record<string, unknown> }[];
   otherIncome: { date: string; amount: number; gst_free: boolean }[];
-  expenses: { date: string; amount: number; category: string }[];
+  expenses: { date: string; amount: number; category: string; vehicle_id?: string | null }[];
   trips: Trip[];
+  /** Cars other than the main one (set up in Settings / the year's car fields). Trips and expenses point at them by vehicle_id. */
+  vehicles?: Vehicle[];
   carTx: { date: string; kind: "purchase" | "sale"; seller: string | null; amount: number; gst: number; business_pct: number }[];
 };
+
+export type Vehicle = { id: string; name: string; cost: number; start_date: string; end_date: string | null; effective_life: number };
+
+const nextFy = (fy: string) => fyOf(addDays(fyRange(fy).end, 1));
+/** Diminishing-value written-down value at the start of `fy` (instant asset write-off cars are nil after their first year). */
+export function openingValue(costBase: number, start: string, end: string | null, life: number, fy: string) {
+  let v = costBase;
+  for (let f = fyOf(start); f < fy; f = nextFy(f)) {
+    if (f === fyOf(start) && costBase < IAWO_LIMIT) return 0;
+    v -= (v * daysOwned(f, start, end)) / 365 * (2 / life);
+  }
+  return round2(Math.max(0, v));
+}
 
 const zero4 = () => [0, 0, 0, 0];
 
@@ -263,9 +278,19 @@ export function summarise(y: YearSettings, d: YearData) {
     const g = gstOf(num(o.amount), reg, o.gst_free);
     q.sales[i] += num(o.amount); q.gstSales[i] += g; q.netIncome[i] += num(o.amount) - g;
   }
+  // Extra cars: each one's business % comes from its own logbook trips.
+  const avgCarPct = y.pct.car.reduce((s, v) => s + num(v), 0) / 4;
+  const extra = (d.vehicles ?? []).map((v) => {
+    const lbV = logbook(d.trips.filter((t) => t.vehicle_id === v.id));
+    return { v, lb: lbV, pct: lbV.total > 0 ? lbV.businessPct : avgCarPct };
+  });
+  const pctFor = (vid?: string | null) => {
+    const x = vid ? extra.find((c) => c.v.id === vid) : null;
+    return x ? { ...y.pct, car: [x.pct, x.pct, x.pct, x.pct] as Pct["car"] } : y.pct;
+  };
   for (const e of d.expenses) {
     const i = quarterOf(e.date);
-    const c = expenseCalc(num(e.amount), e.category, y.pct, i, reg);
+    const c = expenseCalc(num(e.amount), e.category, pctFor(e.vehicle_id), i, reg);
     q.g11[i] += num(e.amount); q.gstPurch[i] += c.gst; q.expenses[i] += c.deductible;
     (byLine[c.line] ??= zero4())[i] += c.deductible;
   }
@@ -288,19 +313,27 @@ export function summarise(y: YearSettings, d: YearData) {
   }));
 
   // Tax return
-  const lb = logbook(d.trips, y.odo_year_start, y.odo_year_end);
-  const annualCarPct = lb.total > 0 ? lb.businessPct : y.pct.car.reduce((s, v) => s + num(v), 0) / 4;
+  const lb = logbook(d.trips.filter((t) => !t.vehicle_id), y.odo_year_start, y.odo_year_end);
+  const annualCarPct = lb.total > 0 ? lb.businessPct : avgCarPct;
   const costBase = Math.max(0, Math.min(num(y.car_cost), num(y.car_limit)) - carGstClaimed);
   // Instant asset write-off: a car costing under $20,000 (ex GST credits) first used this year is deducted in full.
   const { start: fyStart, end: fyEnd } = fyRange(y.fy);
   const writeOff = costBase > 0 && costBase < IAWO_LIMIT && !!y.car_start_date && y.car_start_date >= fyStart && y.car_start_date <= fyEnd;
   const depFull = writeOff ? round2(costBase) : round2((num(y.opening_value) * num(y.days_owned)) / 365 * (2 / num(y.effective_life || 8)));
-  const depreciation = round2(depFull * annualCarPct);
+  const mainDep = round2(depFull * annualCarPct);
+  const cars = extra.map(({ v, lb: lbV, pct: p }) => {
+    const base = Math.min(num(v.cost), num(y.car_limit));
+    const wo = base > 0 && base < IAWO_LIMIT && v.start_date >= fyStart && v.start_date <= fyEnd;
+    const full = wo ? base : (openingValue(base, v.start_date, v.end_date, num(v.effective_life) || 8, y.fy) * daysOwned(y.fy, v.start_date, v.end_date)) / 365 * (2 / (num(v.effective_life) || 8));
+    return { id: v.id, name: v.name, pct: p, writeOff: wo, depreciation: round2(full * p), cpkKm: Math.min(5000, lbV.businessKm) };
+  });
+  // ponytail: one method (logbook or cents/km) for every car; the ATO lets you choose per car.
+  const depreciation = round2(mainDep + cars.reduce((t, c) => t + c.depreciation, 0));
   const interest = round2(num(y.loan_interest) * annualCarPct);
   const sum = (a: number[]) => round2(a.reduce((s, v) => s + v, 0));
   const carLines = CAR_LINES.map((l) => ({ label: l.replace("Car - ", ""), q: (byLine[l] ?? zero4()).map(round2) }));
   const logbookTotal = round2(carLines.reduce((s, l) => s + sum(l.q), 0) + depreciation + interest);
-  const cpkKm = Math.min(5000, lb.annualBusinessKm);
+  const cpkKm = Math.min(5000, lb.annualBusinessKm) + cars.reduce((t, c) => t + c.cpkKm, 0);
   const cpkTotal = round2(cpkKm * num(y.cpk_rate));
   const carClaim = y.car_method === "cpk" ? cpkTotal : logbookTotal;
   const feeLines = FEE_TYPES.map((t) => ({ label: t, q: feeByType[t].map(round2) }));
@@ -333,7 +366,7 @@ export function summarise(y: YearSettings, d: YearData) {
     basYear: { G1: sum(q.sales), "1A": sum(q.gstSales), G10: sum(q.g10), G11: sum(q.g11), "1B": sum(q.gstPurch),
       net: round2(sum(q.gstSales) - sum(q.gstPurch)) },
     profitByQuarter: [0, 1, 2, 3].map((i) => round2(q.netIncome[i] - q.fees[i] - q.expenses[i])),
-    logbook: lb, annualCarPct, p8,
+    logbook: lb, annualCarPct, p8, cars,
     estimate: estimateTax(y.fy, round2(income - totalExpenses), {
       wages: num(y.wages), taxWithheld: num(y.tax_withheld), paygInstalments: num(y.payg_instalments),
       otherIncome: num(y.other_income), otherDeductions: num(y.other_deductions),
@@ -341,7 +374,7 @@ export function summarise(y: YearSettings, d: YearData) {
     tax: {
       businessIncome: sum(q.netIncome), income, carLines, depreciation, interest, logbookTotal, cpkKm, cpkTotal,
       carClaim, feeLines, feesTotal, otherLines, otherTotal, totalExpenses, profit: round2(income - totalExpenses),
-      dep: { carGstClaimed, costBase, depFull, depreciation, writeOff, closing: writeOff ? 0 : round2(num(y.opening_value) - depFull) },
+      dep: { carGstClaimed, costBase, depFull, depreciation: mainDep, writeOff, closing: writeOff ? 0 : round2(num(y.opening_value) - depFull) },
     },
   };
 }

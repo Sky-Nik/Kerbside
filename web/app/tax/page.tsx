@@ -111,7 +111,8 @@ export default async function Tax() {
           {cpk ? <Row label={`${kmFmt(t.cpkKm)} km × ${aud(year.cpk_rate)}`} value={t.cpkTotal} /> : (
             <>
               <Lines lines={t.carLines} />
-              <Row label={`Depreciation × ${pct(s.annualCarPct)}`} value={t.depreciation} />
+              <Row label={`Depreciation${s.cars.length ? ` · ${year.vehicle || "main car"}` : ""} × ${pct(s.annualCarPct)}`} value={t.dep.depreciation} />
+              {s.cars.map((c) => <Row key={c.id} label={`Depreciation · ${c.name} × ${pct(c.pct)}${c.writeOff ? " (write-off)" : ""}`} value={c.depreciation} />)}
               <Row label={`Loan interest × ${pct(s.annualCarPct)}`} value={t.interest} />
             </>
           )}

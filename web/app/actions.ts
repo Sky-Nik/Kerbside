@@ -77,7 +77,7 @@ export async function addTrip(f: FormData) {
   const endDate = str(f, "end_date");
   if (endDate && endDate < date) throw new Error("The 'to' date must be on or after the 'from' date.");
   check((await supabase.from("trips").insert({
-    date, end_date: endDate && endDate !== date ? endDate : null,
+    date, end_date: endDate && endDate !== date ? endDate : null, vehicle_id: str(f, "vehicle_id") || null,
     odo_start: Number(str(f, "odo_start")), odo_end: Number(str(f, "odo_end")),
     purpose: str(f, "purpose"), description: str(f, "description") || null,
   })).error);
@@ -249,5 +249,23 @@ export async function setCarMethod(f: FormData) {
   const m = str(f, "car_method");
   if (m !== "logbook" && m !== "cpk") throw new Error("Unknown method");
   check((await supabase.from("years").update({ car_method: m }).eq("fy", str(f, "fy"))).error);
+  done();
+}
+
+// ---------- Other cars ----------
+export async function addVehicle(f: FormData) {
+  const { supabase } = await requireUser();
+  const start_date = str(f, "start_date"), end_date = str(f, "end_date") || null;
+  if (end_date && end_date < start_date) throw new Error("End date must be after the start date.");
+  check((await supabase.from("vehicles").insert({
+    name: str(f, "name"), rego: str(f, "rego") || null, cost: money(f, "cost"), start_date, end_date,
+    effective_life: Number(str(f, "effective_life")) || 8,
+  })).error);
+  done();
+}
+
+export async function endVehicle(f: FormData) {
+  const { supabase } = await requireUser();
+  check((await supabase.from("vehicles").update({ end_date: str(f, "end_date") || null }).eq("id", str(f, "id"))).error);
   done();
 }

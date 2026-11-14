@@ -35,18 +35,21 @@ export async function loadYear(sb: SupabaseClient, fy: string): Promise<YearSett
 
 export async function loadYearData(sb: SupabaseClient, fy: string): Promise<YearData> {
   const { start, end } = fyRange(fy);
-  const [pm, oi, ex, tr, ct] = await Promise.all([
+  const [pm, oi, ex, tr, ct, vh] = await Promise.all([
     sb.from("income_entries").select("start_date,platform,lines,fees").gte("start_date", start).lte("start_date", end),
     sb.from("other_income").select("date,amount,gst_free").gte("date", start).lte("date", end),
-    sb.from("expenses").select("date,amount,category").gte("date", start).lte("date", end),
-    sb.from("trips").select("odo_start,odo_end,purpose").gte("date", start).lte("date", end),
+    sb.from("expenses").select("date,amount,category,vehicle_id").gte("date", start).lte("date", end),
+    sb.from("trips").select("odo_start,odo_end,purpose,vehicle_id").gte("date", start).lte("date", end),
     sb.from("car_transactions").select("date,kind,seller,amount,gst,business_pct").gte("date", start).lte("date", end),
+    // cars owned at some point in this FY
+    sb.from("vehicles").select("id,name,cost,start_date,end_date,effective_life").lte("start_date", end).or(`end_date.is.null,end_date.gte.${start}`),
   ]);
-  const err = [pm, oi, ex, tr, ct].find((r) => r.error)?.error;
+  const err = [pm, oi, ex, tr, ct, vh].find((r) => r.error)?.error;
   if (err) throw new Error(err.message);
   return {
     incomeEntries: pm.data ?? [], otherIncome: oi.data ?? [], expenses: ex.data ?? [],
     trips: tr.data ?? [], carTx: (ct.data ?? []) as YearData["carTx"],
+    vehicles: (vh.data ?? []).map((v) => ({ ...v, cost: Number(v.cost), effective_life: Number(v.effective_life) })),
   };
 }
 

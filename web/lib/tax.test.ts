@@ -178,3 +178,21 @@ test("instant asset write-off: car under $20,000 first used this year", () => {
   const oldCar = summarise({ ...year, gst_registered: false, car_cost: 18000, opening_value: 12000, car_start_date: "2025-10-01" }, empty);
   assert.equal(oldCar.tax.dep.writeOff, false);
 });
+
+test("second car: own logbook %, own depreciation, expenses use its %", () => {
+  const data = {
+    incomeEntries: [], otherIncome: [], carTx: [],
+    vehicles: [{ id: "v2", name: "Camry", cost: 30000, start_date: "2025-07-01", end_date: null, effective_life: 8 }],
+    trips: [
+      { odo_start: 0, odo_end: 800, purpose: "rideshare" }, { odo_start: 800, odo_end: 1000, purpose: "private" }, // main car 80%
+      { odo_start: 5000, odo_end: 5500, purpose: "rideshare", vehicle_id: "v2" }, { odo_start: 5500, odo_end: 6000, purpose: "private", vehicle_id: "v2" }, // 50%
+    ],
+    expenses: [{ date: "2026-11-01", amount: 110, category: "Car - Fuel", vehicle_id: "v2" }],
+  } as Parameters<typeof summarise>[1];
+  const s = summarise({ ...year, gst_registered: false }, data);
+  assert.equal(s.annualCarPct, 0.8);
+  assert.equal(s.cars[0].pct, 0.5);
+  // opening 1 Jul 2026 = 30000 × (1 − 25%) = 22500; full year DV 25% = 5625; × 50%
+  assert.equal(s.cars[0].depreciation, 2812.5);
+  assert.equal(s.tax.carLines.find((l) => l.label === "Fuel & charging")!.q[1], 55);
+});

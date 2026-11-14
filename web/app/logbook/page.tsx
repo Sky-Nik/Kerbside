@@ -2,7 +2,7 @@ import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear } from "@/lib/data";
 import { addDays, fyRange, logbook, todayAu } from "@/lib/tax";
 import { aud, auDate, kmFmt, pct } from "@/lib/fmt";
-import { addFuel, addTrip, deleteRow, saveVehicle } from "@/app/actions";
+import { addFuel, addTrip, addVehicle, deleteRow, endVehicle, saveVehicle } from "@/app/actions";
 import { fuelStats } from "@/lib/fuel";
 import { ShiftTracker } from "@/components/ShiftTracker";
 import { PageHead } from "@/components/QuarterTabs";
@@ -28,6 +28,11 @@ export default async function Logbook() {
     supabase.from("trips").select("*").gte("date", start).lte("date", end).order("date", { ascending: false }).order("odo_start", { ascending: false }),
   ]);
   const trips = data ?? [];
+  const { data: vehicleRows } = await supabase.from("vehicles").select("*").lte("start_date", end).or(`end_date.is.null,end_date.gte.${start}`).order("start_date");
+  const vehicles = vehicleRows ?? [];
+  const carName = (id: string | null) => (id ? vehicles.find((v) => v.id === id)?.name ?? "Other car" : year.vehicle || "Main car");
+  const mainTrips = trips.filter((t) => !t.vehicle_id);
+  const lastOdoOf = (id: string | null) => trips.find((t) => (t.vehicle_id ?? null) === id)?.odo_end ?? null;
   const { data: fillRows } = await supabase.from("fuel_fills").select("id,date,odometer,litres,cost").gte("date", start).lte("date", end);
   const fuel = fuelStats((fillRows ?? []).map((r) => ({ ...r, litres: Number(r.litres), cost: Number(r.cost) })));
   // On-trip km reported by platforms (from imported tax summaries) – supporting evidence, not odometer readings
@@ -35,9 +40,9 @@ export default async function Logbook() {
     .not("km", "is", null).gte("start_date", start).lte("start_date", end).order("start_date");
   const pkm = (platformKm ?? []).map((r) => ({ ...r, km: Number(r.km) }));
   const pkmTotal = pkm.reduce((t, r) => t + r.km, 0);
-  const lb = logbook(trips, year.odo_year_start, year.odo_year_end);
+  const lb = logbook(mainTrips, year.odo_year_start, year.odo_year_end);
   // First trip starts from the car's starting odometer; later trips continue from the last one.
-  const lastOdo = trips[0]?.odo_end ?? year.odo_year_start ?? "";
+  const lastOdo = mainTrips[0]?.odo_end ?? year.odo_year_start ?? "";
   const tripMin = year.car_start_date && year.car_start_date > start ? year.car_start_date : start;
   const tripMax = year.car_end_date && year.car_end_date < end ? year.car_end_date : end;
   const privateKm = Math.max(0, lb.total - lb.rideshare - lb.other_abn - lb.employment);
@@ -127,6 +132,40 @@ export default async function Logbook() {
         )}
       </section>
 
+      <section className="card rise rise-2 mt-8">
+        <h2 className="h2 flex items-center gap-2">Other cars<Tip k="otherCars" align="left" /></h2>
+        <p className="muted mb-4">Changed cars or drive two? Add each extra car here. Its trips and car expenses use its own logbook %, and its depreciation is worked out on its own.
+          The car above stays your main car.</p>
+        {vehicles.length > 0 && (
+          <ul className="mb-5 divide-y divide-wash-2">
+            {vehicles.map((v) => {
+              const vlb = logbook(trips.filter((t) => t.vehicle_id === v.id));
+              return (
+                <li key={v.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-black text-white"><Icon name="car" size={18} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium">{v.name}{v.rego ? ` · ${v.rego}` : ""}</span>
+                    <span className="block text-[13px] text-mute">{aud(Number(v.cost))} · from {auDate(v.start_date)}{v.end_date ? ` to ${auDate(v.end_date)}` : ""} · {vlb.total ? `${pct(vlb.businessPct)} business use (${kmFmt(vlb.total)} km logged)` : "no trips yet"}</span>
+                  </span>
+                  <form action={endVehicle} className="flex items-end gap-2">
+                    <input type="hidden" name="id" value={v.id} />
+                    <label className="field"><span className="text-xs text-mute">Sold / stopped using</span><input name="end_date" type="date" defaultValue={v.end_date ?? ""} min={v.start_date} /></label>
+                    <button className="btn-secondary btn-sm">Save</button>
+                  </form>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <form action={addVehicle} className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <label className="field lg:col-span-2">Car (make, model)<input name="name" required placeholder="e.g. Kia Niro EV" /></label>
+          <label className="field">Rego<input name="rego" placeholder="ABC123" /></label>
+          <label className="field">Cost incl on-road<input name="cost" type="number" step="0.01" min="0" required placeholder="0.00" /></label>
+          <label className="field">First used for work<input name="start_date" type="date" required /></label>
+          <button className="btn"><Icon name="plus" size={18} />Add car</button>
+        </form>
+      </section>
+
       <section className="card rise rise-3 mt-8">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -140,7 +179,8 @@ export default async function Logbook() {
         <div className="mt-3 flex h-2.5 gap-0.5" aria-label={`${weeksDone} of 12 weeks`}>
           {Array.from({ length: 12 }, (_, i) => <div key={i} className={`flex-1 rounded-full ${i < weeksDone ? "bg-black" : "bg-wash-2"}`} />)}
         </div>
-        <div className="mt-5 border-t border-wash-2 pt-5"><ShiftTracker lastOdo={lastOdo === "" ? null : Number(lastOdo)} /></div>
+        <div className="mt-5 border-t border-wash-2 pt-5"><ShiftTracker cars={[{ id: "", name: carName(null), lastOdo: lastOdo === "" ? null : Number(lastOdo) },
+          ...vehicles.filter((v) => !v.end_date || v.end_date >= todayAu()).map((v) => ({ id: v.id, name: v.name, lastOdo: lastOdoOf(v.id) }))]} /></div>
       </section>
 
       <section className="card rise rise-3 mt-8">
@@ -155,6 +195,11 @@ export default async function Logbook() {
             <select name="purpose" required>{Object.entries(PURPOSES).map(([v, p]) => <option key={v} value={v}>{p.label}</option>)}</select>
           </label>
           <label className="field">Description<input name="description" placeholder="For non-rideshare trips" /></label>
+          {vehicles.length > 0 && (
+            <label className="field">Car<select name="vehicle_id" defaultValue="">
+              <option value="">{carName(null)}</option>{vehicles.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select></label>
+          )}
           <button className="btn"><Icon name="plus" size={18} />Add trip</button>
         </form>
       </section>
@@ -173,7 +218,7 @@ export default async function Logbook() {
               <li key={t.id} className="flex items-center gap-4 py-3.5">
                 <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${t.purpose === "private" ? "bg-wash-2" : "bg-black text-white"}`}><Icon name="car" size={20} /></span>
                 <span className="min-w-0 flex-1">
-                  <span className="block font-medium">{PURPOSES[t.purpose]?.label}</span>
+                  <span className="block font-medium">{PURPOSES[t.purpose]?.label}{vehicles.length > 0 && <span className="font-normal text-mute"> · {carName(t.vehicle_id)}</span>}</span>
                   <span className="block truncate text-[13px] text-mute">{auDate(t.date)}{t.end_date ? ` – ${auDate(t.end_date)} (${days(t.date, t.end_date)} days)` : ""} ·{kmFmt(t.odo_start)} → {kmFmt(t.odo_end)}{t.description ? ` · ${t.description}` : ""}</span>
                 </span>
                 {(t.photos ?? []).map((ph: string, i: number) => ph && (

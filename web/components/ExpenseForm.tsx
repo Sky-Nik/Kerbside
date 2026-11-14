@@ -8,7 +8,7 @@ import { attachReceipt } from "./receipt";
 import { Icon } from "./Icon";
 import { Tip } from "./Tip";
 
-export function ExpenseForm({ min, max, defaultDate }: { min: string; max: string; defaultDate: string }) {
+export function ExpenseForm({ min, max, defaultDate, cars = [] }: { min: string; max: string; defaultDate: string; cars?: { id: string; name: string }[] }) {
   const router = useRouter();
   const form = useRef<HTMLFormElement>(null);
   const [busy, setBusy] = useState(false);
@@ -59,6 +59,7 @@ export function ExpenseForm({ min, max, defaultDate }: { min: string; max: strin
     const { data, error } = await supabaseBrowser().from("expenses").insert({
       date: f.get("date"), description: String(f.get("description") || "") || null,
       amount: Math.round(Number(f.get("amount")) * 100) / 100, category: f.get("category"),
+      vehicle_id: String(f.get("category") ?? "").startsWith("Car") ? String(f.get("vehicle_id") || "") || null : null,
     }).select("id").single();
     if (error) {
       setBusy(false);
@@ -89,6 +90,11 @@ export function ExpenseForm({ min, max, defaultDate }: { min: string; max: strin
             {CATEGORIES.map((c) => <option key={c.name}>{c.name}</option>)}
           </select>
         </label>
+        {cars.length > 1 && (
+          <label className="field sm:col-span-2"><span>Which car <span className="text-[11px] font-normal text-mute">for car costs</span></span>
+            <select name="vehicle_id" defaultValue="">{cars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+          </label>
+        )}
       </div>
 
       <label className={`relative flex min-h-44 cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-dashed p-4 text-center transition ${file ? "border-ink bg-white" : "border-line bg-wash hover:border-mute-2"}`}>

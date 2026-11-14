@@ -20,11 +20,13 @@ export default async function Expenses({ searchParams }: PageProps<"/expenses">)
   const end = new Date(Date.UTC(Number(months[2].slice(0, 4)), Number(months[2].slice(5, 7)), 0)).toISOString().slice(0, 10);
   await generateRecurring(supabase, todayAu()); // add any recurring expenses that have come due
   const { data: recurring } = await supabase.from("recurring_expenses").select("*").order("created_at");
+  const { data: vehicles } = await supabase.from("vehicles").select("id,name").lte("start_date", end).or(`end_date.is.null,end_date.gte.${start}`);
   const [year, { data, error }] = await Promise.all([
     loadYear(supabase, fy),
     supabase.from("expenses").select("*").gte("date", start).lte("date", end).order("date", { ascending: false }).order("created_at", { ascending: false }),
   ]);
   if (error) throw new Error(error.message);
+  const cars = [{ id: "", name: year.vehicle || "Main car" }, ...(vehicles ?? [])];
   const rows = (data ?? []).map((e) => ({ ...e, ...expenseCalc(Number(e.amount), e.category, year.pct, q, year.gst_registered) }));
   const tot = rows.reduce((t, r) => ({ amount: t.amount + Number(r.amount), gst: t.gst + r.gst, ded: t.ded + r.deductible }),
     { amount: 0, gst: 0, ded: 0 });
@@ -54,7 +56,7 @@ export default async function Expenses({ searchParams }: PageProps<"/expenses">)
 
       <section className="card rise rise-2 mb-8">
         <h2 className="h2 mb-4 flex items-center gap-2">Add an expense<Tip k="addExpense" align="left" /></h2>
-        <ExpenseForm min={start} max={end} defaultDate={today >= start && today <= end ? today : start} />
+        <ExpenseForm min={start} max={end} defaultDate={today >= start && today <= end ? today : start} cars={cars} />
       </section>
 
       <section className="card rise rise-2 mb-8">
@@ -121,7 +123,7 @@ export default async function Expenses({ searchParams }: PageProps<"/expenses">)
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-medium">{r.description || r.category}</span>
-                  <span className="block truncate text-[13px] text-mute">{auDate(r.date)} · {r.category}{r.recurring_id ? " · recurring" : ""}</span>
+                  <span className="block truncate text-[13px] text-mute">{auDate(r.date)} · {r.category}{r.vehicle_id ? ` · ${cars.find((c) => c.id === r.vehicle_id)?.name ?? "other car"}` : ""}{r.recurring_id ? " · recurring" : ""}</span>
                 </span>
                 <span className="order-last flex w-full items-center gap-2 pl-15 sm:order-none sm:w-auto sm:pl-0">
                   {r.receipt_path ? (

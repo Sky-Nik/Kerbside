@@ -25,7 +25,7 @@ export default async function Settings() {
   const [{ data: profile }, year, { data: trips }] = await Promise.all([
     supabase.from("profiles").select("*").maybeSingle(),
     loadYear(supabase, fy),
-    supabase.from("trips").select("odo_start,odo_end,purpose").gte("date", start).lte("date", end),
+    supabase.from("trips").select("odo_start,odo_end,purpose").is("vehicle_id", null).gte("date", start).lte("date", end),
   ]);
   const lb = logbook(trips ?? []);
   const toPct = (v: number) => Math.round(v * 1000) / 10;
