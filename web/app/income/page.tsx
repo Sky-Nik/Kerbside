@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear, pickQuarter, requirePlatforms } from "@/lib/data";
-import { INCOME_LINES, mondayOf, monthsOf, overlappingIds, platformMonth } from "@/lib/tax";
+import { INCOME_LINES, mondayOf, monthsOf, overlappingIds, platformMonth, todayAu } from "@/lib/tax";
 import { aud, auDate } from "@/lib/fmt";
 import { deleteRow } from "@/app/actions";
 import { PageHead, QuarterTabs } from "@/components/QuarterTabs";
@@ -38,7 +38,7 @@ export default async function Income({ searchParams }: PageProps<"/income">) {
     .lte("start_date", qEnd).gte("end_date", qStart);
   const overlaps = overlappingIds(touching ?? []);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayAu();
   const defaultFrom = today >= qStart && today <= qEnd ? mondayOf(today) : qStart;
 
   return (

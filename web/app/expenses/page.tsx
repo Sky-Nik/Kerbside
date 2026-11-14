@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear, pickQuarter } from "@/lib/data";
-import { expenseCalc, monthsOf } from "@/lib/tax";
+import { expenseCalc, monthsOf, todayAu } from "@/lib/tax";
 import { aud, auDate, pct } from "@/lib/fmt";
 import { deleteExpense } from "@/app/actions";
 import { PageHead, QuarterTabs } from "@/components/QuarterTabs";
@@ -24,7 +24,7 @@ export default async function Expenses({ searchParams }: PageProps<"/expenses">)
   const tot = rows.reduce((t, r) => ({ amount: t.amount + Number(r.amount), gst: t.gst + r.gst, ded: t.ded + r.deductible }),
     { amount: 0, gst: 0, ded: 0 });
   const withReceipt = rows.filter((r) => r.receipt_path).length;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayAu();
 
   const stats = [
     ["Spent incl GST", aud(tot.amount)],

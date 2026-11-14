@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear, loadYearData, pickQuarter, requirePlatforms } from "@/lib/data";
-import { BAS_DUE, fyRange, summarise } from "@/lib/tax";
+import { BAS_DUE, fyRange, summarise, todayAu } from "@/lib/tax";
 import { aud } from "@/lib/fmt";
 import { Icon } from "@/components/Icon";
 import { CategoryBars, IncomeExpenseChart } from "@/components/Charts";
@@ -44,7 +44,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   // Earnings panel: all-time entries and expenses (small tables), past years from uploaded documents
   const sp = await searchParams;
   const view = sp.view === "month" || sp.view === "year" ? sp.view : "week";
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayAu();
   const at = typeof sp.at === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.at) ? sp.at : today;
   const [{ data: allEntries }, { data: allExpenses }] = await Promise.all([
     supabase.from("income_entries").select("start_date,platform,lines"),

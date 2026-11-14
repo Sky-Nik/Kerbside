@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadYear } from "@/lib/data";
-import { expenseCalc, fyRange, platformMonth, quarterOf, summarise, type YearData } from "@/lib/tax";
+import { expenseCalc, fyRange, platformMonth, quarterOf, summarise, type YearData, todayAu } from "@/lib/tax";
 
 export type ReportData = Awaited<ReturnType<typeof loadReport>>;
 
@@ -37,6 +37,6 @@ export async function loadReport(sb: SupabaseClient, fy: string, email: string |
     abn: profile.data?.abn ?? null,
     income, expenses, trips: trips.data ?? [], carTx: carTx.data ?? [],
     s: summarise(year, data),
-    generated: new Date().toISOString().slice(0, 10),
+    generated: todayAu(),
   };
 }

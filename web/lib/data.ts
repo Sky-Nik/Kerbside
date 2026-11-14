@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ATO_RATES, currentFy, fyRange, quarterOf, type YearData, type YearSettings } from "./tax";
+import { ATO_RATES, currentFy, fyRange, quarterOf, type YearData, type YearSettings, todayAu } from "./tax";
 
 export async function getFy() {
   const v = (await cookies()).get("fy")?.value;
@@ -12,7 +12,7 @@ export async function getFy() {
 export function pickQuarter(q: string | string[] | undefined, fy: string) {
   const n = Number(q);
   if (n >= 0 && n <= 3) return n;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayAu();
   return fy === currentFy() ? quarterOf(today) : 0;
 }
 

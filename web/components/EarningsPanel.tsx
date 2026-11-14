@@ -3,6 +3,7 @@ import { aud } from "@/lib/fmt";
 import { bucketOf, inBucket, series, shift, type Bucket, type View } from "@/lib/periods";
 import { Icon } from "./Icon";
 import { PlatformTile } from "./PlatformTile";
+import { PeriodSelect } from "./PeriodSelect";
 
 export type EarningEntry = { start_date: string; platform: string; lines: Record<string, number> };
 export type PastYear = { fy: string; net: number; gross: number; expenses: number; wages: number; source: string };
@@ -50,11 +51,18 @@ export function EarningsPanel({ view, at, today, entries, expenses, pastYears, f
   const change = prev > 0 ? (cur.amount - prev) / prev : null;
   const canNext = shift(view, sel, 1).start <= now.start;
 
+  // Dropdown: newest first – a year of weeks, two years of months, or every year on record.
+  const optionBuckets = (view === "year" ? bars : series(view, now, view === "week" ? 52 : 24)).slice().reverse();
+  if (!optionBuckets.some((b) => b.key === sel.key)) optionBuckets.push(sel);
+  const thisLabel = { week: "This week", month: "This month", year: "This year" }[view];
+  const options = optionBuckets.map((b) => ({ value: b.start, label: b.key === now.key ? `${thisLabel} · ${b.label}` : b.label }));
+  const todayLabel = new Date(`${today}T00:00:00Z`).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+
   return (
     <section className="card-ink rise rise-1 relative overflow-hidden lg:col-span-3">
       <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full border-[40px] border-white/[0.04]" />
       <div className="relative flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-medium text-white/60">Your earnings</p>
+        <p className="text-sm font-medium text-white/60">Your earnings <span className="text-white/40">· Today, {todayLabel}</span></p>
         <div className="inline-flex gap-1 rounded-full bg-white/10 p-1">
           {VIEWS.map(([v, l]) => (
             <Link key={v} href={href(v, bucketOf(v, sel.start > today ? today : sel.start))} scroll={false}
@@ -66,7 +74,7 @@ export function EarningsPanel({ view, at, today, entries, expenses, pastYears, f
       <div className="relative mt-4 flex items-center gap-2">
         <Link href={href(view, shift(view, sel, -1))} scroll={false} aria-label="Previous period"
           className="grid h-8 w-8 place-items-center rounded-full bg-white/10 hover:bg-white/20"><Icon name="chevron" size={16} className="rotate-180" /></Link>
-        <span className="min-w-0 flex-1 text-center text-sm font-medium sm:flex-none sm:px-2">{sel.label}{sel.key === now.key ? " · now" : ""}</span>
+        <PeriodSelect view={view} value={sel.start} options={options} />
         {canNext ? (
           <Link href={href(view, shift(view, sel, 1))} scroll={false} aria-label="Next period"
             className="grid h-8 w-8 place-items-center rounded-full bg-white/10 hover:bg-white/20"><Icon name="chevron" size={16} /></Link>

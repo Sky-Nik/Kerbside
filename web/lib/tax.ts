@@ -149,7 +149,9 @@ export function daysOwned(fy: string, from?: string | null, to?: string | null):
   const b = to && to < end ? to : end;
   return Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 86400000) + 1);
 }
-export const currentFy = () => fyOf(new Date().toISOString().slice(0, 10));
+/** Today's date in Australia (ISO). The server runs in UTC, which is a calendar day behind each morning here. */
+export const todayAu = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne" }).format(new Date());
+export const currentFy = () => fyOf(todayAu());
 export function fyOptions(around = currentFy(), back = 3): string[] {
   const s = Number(around.slice(0, 4));
   return Array.from({ length: back + 2 }, (_, i) => s + 1 - i).map((y) => fyOf(`${y}-07-01`));
