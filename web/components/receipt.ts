@@ -4,7 +4,7 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 const MAX_BYTES = 10 * 1024 * 1024;
 
 /** Shrinks big JPEG/PNG/WebP photos to max 2000px JPEG. Other files (PDF, HEIC) pass through. */
-async function shrink(file: File): Promise<File> {
+export async function shrink(file: File): Promise<File> {
   if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 1.5 * 1024 * 1024) return file;
   try {
     const bmp = await createImageBitmap(file);
@@ -38,4 +38,17 @@ export async function attachReceipt(expenseId: string, original: File) {
     throw new Error(upd.error.message);
   }
   if (old?.receipt_path) await sb.storage.from("receipts").remove([old.receipt_path]);
+}
+
+/** Uploads an odometer photo to receipts/<user>/odometer/ and returns its storage path. */
+export async function uploadOdometer(original: File, label: string) {
+  const sb = supabaseBrowser();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) throw new Error("Signed out — please sign in again.");
+  const file = await shrink(original);
+  if (file.size > MAX_BYTES) throw new Error("Photo is larger than 10 MB.");
+  const path = `${auth.user.id}/odometer/${new Date().toISOString().replace(/[:.]/g, "-")}-${label}.${file.type === "image/png" ? "png" : "jpg"}`;
+  const up = await sb.storage.from("receipts").upload(path, file, { contentType: file.type || undefined });
+  if (up.error) throw new Error(`Upload failed: ${up.error.message}`);
+  return path;
 }

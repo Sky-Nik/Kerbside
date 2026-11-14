@@ -1,9 +1,10 @@
 import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear } from "@/lib/data";
-import { fyRange, logbook, todayAu } from "@/lib/tax";
+import { addDays, fyRange, logbook, todayAu } from "@/lib/tax";
 import { aud, auDate, kmFmt, pct } from "@/lib/fmt";
 import { addFuel, addTrip, deleteRow, saveVehicle } from "@/app/actions";
 import { fuelStats } from "@/lib/fuel";
+import { ShiftTracker } from "@/components/ShiftTracker";
 import { PageHead } from "@/components/QuarterTabs";
 import { PlatformTile } from "@/components/PlatformTile";
 import { Icon } from "@/components/Icon";
@@ -40,6 +41,10 @@ export default async function Logbook() {
   const tripMin = year.car_start_date && year.car_start_date > start ? year.car_start_date : start;
   const tripMax = year.car_end_date && year.car_end_date < end ? year.car_end_date : end;
   const privateKm = Math.max(0, lb.total - lb.rideshare - lb.other_abn - lb.employment);
+  // 12-week logbook progress: continuous period from the first trip to the latest one (gaps count as private)
+  const firstTrip = trips.length ? trips.reduce((m, t) => (t.date < m ? t.date : m), trips[0].date) : null;
+  const lastTrip = trips.reduce((m, t) => ((t.end_date ?? t.date) > m ? (t.end_date ?? t.date) : m), firstTrip ?? "");
+  const weeksDone = firstTrip ? Math.min(12, Math.floor(days(firstTrip, lastTrip) / 7)) : 0;
   const segs = [["rideshare", lb.rideshare], ["other_abn", lb.other_abn], ["employment", lb.employment], ["private", privateKm]] as const;
 
   return (
@@ -123,6 +128,22 @@ export default async function Logbook() {
       </section>
 
       <section className="card rise rise-3 mt-8">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="h2 flex items-center gap-2">Logbook mode<Tip k="logbookMode" align="left" /></h2>
+            <p className="muted max-w-2xl">{weeksDone >= 12
+              ? `12-week logbook done (${auDate(firstTrip!)} – ${auDate(addDays(firstTrip!, 83))}). It’s good for 5 years unless your driving pattern changes a lot.`
+              : firstTrip ? `Week ${weeksDone + 1} of 12. Keep logging every shift until ${auDate(addDays(firstTrip, 83))}.` : "Log every shift for 12 weeks in a row to use the logbook method."}</p>
+          </div>
+          <p className="text-2xl font-bold tabular-nums">{weeksDone}/12 <span className="text-sm font-normal text-mute">weeks</span></p>
+        </div>
+        <div className="mt-3 flex h-2.5 gap-0.5" aria-label={`${weeksDone} of 12 weeks`}>
+          {Array.from({ length: 12 }, (_, i) => <div key={i} className={`flex-1 rounded-full ${i < weeksDone ? "bg-black" : "bg-wash-2"}`} />)}
+        </div>
+        <div className="mt-5 border-t border-wash-2 pt-5"><ShiftTracker lastOdo={lastOdo === "" ? null : Number(lastOdo)} /></div>
+      </section>
+
+      <section className="card rise rise-3 mt-8">
         <h2 className="h2 flex items-center gap-2">Add a trip<Tip k="addTrip" align="left" /></h2>
         <p className="muted mb-4">For one day, leave “To” blank. Drove only for one purpose all week? Enter the whole week as one entry: the first and last day, with the odometer at the start and end.</p>
         <form action={addTrip} className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-7">
@@ -155,6 +176,10 @@ export default async function Logbook() {
                   <span className="block font-medium">{PURPOSES[t.purpose]?.label}</span>
                   <span className="block truncate text-[13px] text-mute">{auDate(t.date)}{t.end_date ? ` – ${auDate(t.end_date)} (${days(t.date, t.end_date)} days)` : ""} ·{kmFmt(t.odo_start)} → {kmFmt(t.odo_end)}{t.description ? ` · ${t.description}` : ""}</span>
                 </span>
+                {(t.photos ?? []).map((ph: string, i: number) => ph && (
+                  <a key={i} href={`/odometer/${t.id}?i=${i}`} target="_blank" rel="noopener" title={`Taken ${ph.split("/odometer/")[1]?.slice(0, 16).replace("T", " ")} UTC`}
+                    className="pill bg-wash-2 py-1 text-xs hover:bg-wash"><Icon name="check" size={12} />{i ? "End" : "Start"} photo</a>
+                ))}
                 <span className="font-bold tabular-nums">{kmFmt(t.odo_end - t.odo_start)} km</span>
                 <form action={deleteRow}><input type="hidden" name="table" value="trips" /><input type="hidden" name="id" value={t.id} /><button className="btn-danger">Delete</button></form>
               </li>

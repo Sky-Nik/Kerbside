@@ -54,6 +54,10 @@ export async function deleteRow(f: FormData) {
   const table = str(f, "table") as (typeof DELETABLE)[number];
   if (!DELETABLE.includes(table)) throw new Error("Not allowed");
   const { supabase } = await requireUser();
+  if (table === "trips") { // remove odometer photos with the trip
+    const { data } = await supabase.from("trips").select("photos").eq("id", str(f, "id")).maybeSingle();
+    if (data?.photos?.length) await supabase.storage.from("receipts").remove(data.photos);
+  }
   check((await supabase.from(table).delete().eq("id", str(f, "id"))).error);
   done();
 }

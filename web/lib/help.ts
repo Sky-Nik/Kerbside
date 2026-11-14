@@ -27,6 +27,7 @@ export const HELP = {
   bank: "Download a CSV statement from your bank’s website. It’s read on this device only, never uploaded. Kerbside lists fuel, tolls, phone, parking and car costs it can’t find in your expenses.",
   fuel: "Log each fill-up with the odometer reading. Kerbside works out litres per 100 km and fuel cost per km between fills. Tick the box to also add it as a fuel expense.",
   super: "Self-employed drivers get no employer super. Money you put into super yourself can be claimed as a deduction, up to the yearly cap, if you send your fund a notice of intent first.",
+  logbookMode: "The ATO logbook method needs 12 continuous weeks of records. Tap Start shift and End shift each time you drive for work; add private trips below. A photo of the odometer is good proof.",
   scan: "Reads the photo on your device – nothing is sent anywhere. Works best on a flat, well-lit receipt. Always check what it fills in.",
   recurring: "Set up a cost once and Kerbside adds it on every due date, so nothing gets missed. Stopping keeps the ones already added.",
   reminders: "Things that need doing soon: BAS due dates, weeks without earnings, logbook check-ins and renewals. Add them to your phone’s calendar too.",
