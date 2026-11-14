@@ -13,6 +13,8 @@ const PURPOSES: Record<string, { label: string; color: string }> = {
   private: { label: "Private", color: "bg-white/15" },
 };
 
+const days = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1;
+
 export default async function Logbook() {
   const { supabase } = await requireUser();
   const fy = await getFy();
@@ -67,9 +69,11 @@ export default async function Logbook() {
       </p>
 
       <section className="card rise rise-3 mt-8">
-        <h2 className="h2 mb-4">Add a trip</h2>
-        <form action={addTrip} className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-6">
-          <label className="field">Date<input name="date" type="date" required min={start} max={end} /></label>
+        <h2 className="h2">Add a trip</h2>
+        <p className="muted mb-4">For one day, leave “To” blank. Drove only for one purpose all week? Enter the whole week as one entry: the first and last day, with the odometer at the start and end.</p>
+        <form action={addTrip} className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-7">
+          <label className="field">From<input name="date" type="date" required min={start} max={end} /></label>
+          <label className="field"><span>To <span className="text-[11px] font-normal text-mute">optional</span></span><input name="end_date" type="date" min={start} max={end} /></label>
           <label className="field">Odometer start<input name="odo_start" type="number" required defaultValue={lastOdo} /></label>
           <label className="field">Odometer end<input name="odo_end" type="number" required /></label>
           <label className="field">Purpose
@@ -95,7 +99,7 @@ export default async function Logbook() {
                 <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${t.purpose === "private" ? "bg-wash-2" : "bg-black text-white"}`}><Icon name="car" size={20} /></span>
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium">{PURPOSES[t.purpose]?.label}</span>
-                  <span className="block truncate text-[13px] text-mute">{auDate(t.date)} · {kmFmt(t.odo_start)} → {kmFmt(t.odo_end)}{t.description ? ` · ${t.description}` : ""}</span>
+                  <span className="block truncate text-[13px] text-mute">{auDate(t.date)}{t.end_date ? ` – ${auDate(t.end_date)} (${days(t.date, t.end_date)} days)` : ""} ·{kmFmt(t.odo_start)} → {kmFmt(t.odo_end)}{t.description ? ` · ${t.description}` : ""}</span>
                 </span>
                 <span className="font-bold tabular-nums">{kmFmt(t.odo_end - t.odo_start)} km</span>
                 <form action={deleteRow}><input type="hidden" name="table" value="trips" /><input type="hidden" name="id" value={t.id} /><button className="btn-danger">Delete</button></form>

@@ -77,8 +77,12 @@ export async function deleteExpense(f: FormData) {
 
 export async function addTrip(f: FormData) {
   const { supabase } = await requireUser();
+  const date = str(f, "date");
+  const endDate = str(f, "end_date");
+  if (endDate && endDate < date) throw new Error("The 'to' date must be on or after the 'from' date.");
   check((await supabase.from("trips").insert({
-    date: str(f, "date"), odo_start: Number(str(f, "odo_start")), odo_end: Number(str(f, "odo_end")),
+    date, end_date: endDate && endDate !== date ? endDate : null,
+    odo_start: Number(str(f, "odo_start")), odo_end: Number(str(f, "odo_end")),
     purpose: str(f, "purpose"), description: str(f, "description") || null,
   })).error);
   done();
