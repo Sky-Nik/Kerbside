@@ -6,8 +6,9 @@ import { Header } from "@/components/Header";
 const dmSans = DM_Sans({ variable: "--font-dm-sans", subsets: ["latin"], weight: ["400", "500", "700"] });
 
 export const metadata: Metadata = {
-  title: "Rideshare Tax",
-  description: "Income, expenses, receipts, logbook, BAS and tax for Australian rideshare drivers",
+  title: "Kerbside",
+  description: "Kerbside: income, receipts, logbook, BAS and tax return for Australian rideshare drivers",
+  appleWebApp: { title: "Kerbside", capable: true, statusBarStyle: "black" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#000000" };
 

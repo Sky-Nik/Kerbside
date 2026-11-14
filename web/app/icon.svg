@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Kerbside mark: a K pulled up at the kerb -->
+  <rect width="64" height="64" rx="14" fill="#000"/>
+  <path d="M21.5 13v30" stroke="#fff" stroke-width="9"/>
+  <path d="M47.5 13 28 29.5 47.5 43" fill="none" stroke="#fff" stroke-width="9" stroke-linejoin="miter" stroke-miterlimit="4"/>
+  <rect x="17" y="48" width="34" height="4.5" rx="2.25" fill="#ffc043"/>
+</svg>

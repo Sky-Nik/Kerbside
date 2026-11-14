@@ -1,4 +1,4 @@
-// Tax engine: mirrors the Rideshare Tax Tracker spreadsheet. Pure functions, no I/O.
+// Kerbside tax engine (rebuilt from the Rideshare Tax Tracker spreadsheet). Pure functions, no I/O.
 // Amounts are dollars (numbers); everything is rounded to cents where the ATO would.
 
 export type PctKey = "car" | "phone" | "internet" | "music" | "computer";
