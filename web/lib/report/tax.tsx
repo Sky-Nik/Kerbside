@@ -54,7 +54,7 @@ export function TaxReport({ r }: { r: ReportData }) {
           intro="This summary brings together your income, expenses, car logbook and BAS for the financial year, laid out in the same order as the ATO’s business schedule so you can lodge your own return or hand it to your tax agent."
           left={[["Business income (ex GST)", money(t.income)], ["Total expenses", money(t.totalExpenses)],
             [S.basYear.net < 0 ? "GST refunded via BAS" : "GST paid via BAS", money(Math.abs(S.basYear.net))],
-            [S.estimate.result >= 0 ? "Estimated tax refund" : "Estimated tax to pay", money(Math.abs(S.estimate.result))]]}
+            [S.estimate.result > 0 ? "Estimated tax refund" : S.estimate.result < 0 ? "Estimated tax to pay" : "Estimated tax", money(Math.abs(S.estimate.result))]]}
           headline={{ label: t.profit < 0 ? "Net business loss" : "Net business profit", value: money(Math.abs(t.profit)) }}
           stats={[
             { value: `${lb.annualBusinessKm.toLocaleString("en-AU")} km`, label: "Business kilometres" },
@@ -91,7 +91,7 @@ export function TaxReport({ r }: { r: ReportData }) {
         <View wrap={false} style={{ flexDirection: "row", alignItems: "center", backgroundColor: S.estimate.result >= 0 ? "#E9F7EF" : "#FFF0EE",
           borderRadius: 8, padding: 16, marginBottom: 10 }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 12, color: C.ink2 }}>{S.estimate.result >= 0 ? "Estimated refund" : "Estimated tax to pay"}</Text>
+            <Text style={{ fontSize: 12, color: C.ink2 }}>{S.estimate.result > 0 ? "Estimated refund" : S.estimate.result < 0 ? "Estimated tax to pay" : "No tax to pay"}</Text>
             <Text style={{ fontSize: 30, letterSpacing: -0.6, color: S.estimate.result >= 0 ? C.pos : C.neg, marginTop: 4 }}>{money(Math.abs(S.estimate.result))}</Text>
           </View>
           <View style={{ width: 250 }}>
@@ -102,7 +102,7 @@ export function TaxReport({ r }: { r: ReportData }) {
               ...(S.estimate.sbito ? [["Less small business income tax offset", `-${money(S.estimate.sbito)}`]] : []),
               ["Plus Medicare levy", money(S.estimate.medicare)],
               ["Total tax", money(S.estimate.totalTax)],
-              ["Less tax already paid", `-${money(S.estimate.credits)}`],
+              ["Less tax already paid", S.estimate.credits ? `-${money(S.estimate.credits)}` : money(0)],
             ] as [string, string][]).map(([k, v]) => (
               <View key={k} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2.5 }}>
                 <Text style={{ fontSize: 8.5, color: C.ink2 }}>{k}</Text><Text style={{ fontSize: 8.5 }}>{v}</Text>

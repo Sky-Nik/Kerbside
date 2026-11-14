@@ -50,7 +50,7 @@ export default async function Tax() {
 
       <section className={`rise rise-2 mb-6 grid gap-6 rounded-2xl p-6 lg:grid-cols-[1fr_1.2fr] ${e.result >= 0 ? "bg-[#e9f7ef]" : "bg-[#fff0ee]"}`}>
         <div>
-          <p className="text-sm font-medium text-ink-2">{e.result >= 0 ? "Estimated tax refund" : "Estimated tax to pay"}</p>
+          <p className="text-sm font-medium text-ink-2">{e.result > 0 ? "Estimated tax refund" : e.result < 0 ? "Estimated tax to pay" : "No tax to pay (estimate)"}</p>
           <p className={`display mt-1 tabular-nums ${e.result >= 0 ? "text-pos" : "text-neg"}`}>{aud(Math.abs(e.result))}</p>
           <p className="mt-2 text-sm text-mute">
             Income tax for FY {fy}, based on your business profit plus the other income you enter below.
@@ -69,7 +69,7 @@ export default async function Tax() {
           {e.sbito > 0 && <div className="kv"><dt>Less small business income tax offset</dt><dd>-{aud(e.sbito)}</dd></div>}
           <div className="kv"><dt>Plus Medicare levy</dt><dd>{aud(e.medicare)}</dd></div>
           <div className="kv"><dt className="!text-ink font-medium">Total tax</dt><dd className="font-bold">{aud(e.totalTax)}</dd></div>
-          <div className="kv"><dt>Less tax already paid (withheld + instalments)</dt><dd>-{aud(e.credits)}</dd></div>
+          <div className="kv"><dt>Less tax already paid (withheld + instalments)</dt><dd>{e.credits ? `-${aud(e.credits)}` : aud(0)}</dd></div>
           <div className="kv"><dt className="!text-ink font-bold">{e.result >= 0 ? "Refund" : "To pay"}</dt><dd className="font-bold">{aud(Math.abs(e.result))}</dd></div>
         </dl>
         <p className="muted lg:col-span-2">
