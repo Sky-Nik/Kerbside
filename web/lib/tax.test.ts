@@ -1,7 +1,7 @@
 // Run: npm test   (node's built-in test runner; same scenario was verified in the Excel workbook)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { carPurchaseGst, fyOf, logbook, monthsOf, quarterOf, summarise, type YearSettings } from "./tax.ts";
+import { carPurchaseGst, fyOf, logbook, mondayOf, monthsOf, quarterOf, summarise, type YearSettings } from "./tax.ts";
 
 const year: YearSettings = {
   fy: "2026-27", gst_registered: true, car_method: "logbook",
@@ -22,7 +22,7 @@ test("dates: FY, quarter and months", () => {
 
 test("BAS + profit match the spreadsheet scenario", () => {
   const s = summarise(year, {
-    platformMonths: [{ month: "2026-07-01", platform: "Uber", lines: { "Gross fares": 1100, "Split fare fee": 11 },
+    incomeEntries: [{ start_date: "2026-07-01", platform: "Uber", lines: { "Gross fares": 1100, "Split fare fee": 11 },
       fees: { "Service fees": 275 } }],
     otherIncome: [],
     expenses: [
@@ -37,20 +37,36 @@ test("BAS + profit match the spreadsheet scenario", () => {
   assert.equal(q1.G1, 1111);
   assert.equal(q1["1A"], 101);
   assert.equal(q1.G10, 80000);
-  assert.equal(q1.G11, 546); // fees 286 + receipts 260
-  assert.equal(q1["1B"], 26 + 8 + 2.27 + 5067.2); // fees + fuel + phone + car (capped at 6334 × 80%)
-  assert.equal(s.tax.feesTotal, 260);
+  assert.equal(q1.G11, 535); // service fee 275 + receipts 260 (no pass-through fees any more)
+  assert.equal(q1["1B"], 25 + 8 + 2.27 + 5067.2); // fee + fuel + phone + car (capped at 6334 × 80%)
+  assert.equal(s.tax.feesTotal, 250);
   assert.equal(s.tax.otherTotal, 22.73);
   assert.equal(s.tax.carClaim, 160); // fuel 80 + rego 80
-  assert.equal(s.tax.profit, 1010 - 260 - 22.73 - 160);
+  assert.equal(s.tax.profit, 1010 - 250 - 22.73 - 160);
 });
 
 test("pass-through fee override replaces derived amount", () => {
   const s = summarise(year, {
-    platformMonths: [{ month: "2026-07-01", platform: "Uber", lines: { "Toll reimbursement": 22 }, fees: { Tolls: 11 } }],
+    incomeEntries: [{ start_date: "2026-07-01", platform: "Uber", lines: { "Toll reimbursement": 22 }, fees: { Tolls: 11 } }],
     otherIncome: [], expenses: [], trips: [], carTx: [],
   });
   assert.equal(s.bas[0].G11, 11);
+});
+
+test("weekly entries: net fare + promotions + tips, week counted by its Monday", () => {
+  assert.equal(mondayOf("2026-10-01"), "2026-09-28"); // Thu -> Mon in previous quarter
+  assert.equal(mondayOf("2026-11-16"), "2026-11-16");
+  const s = summarise(year, {
+    incomeEntries: [
+      { start_date: "2026-09-28", platform: "Uber", lines: { "Net fare": 880, Promotions: 110, Tips: 11 }, fees: {} },
+      { start_date: "2026-10-05", platform: "DiDi", lines: { "Net fare": 220 }, fees: {} },
+    ],
+    otherIncome: [], expenses: [], trips: [], carTx: [],
+  });
+  assert.equal(s.bas[0].G1, 1001);
+  assert.equal(s.bas[0]["1A"], 91);
+  assert.equal(s.bas[1].G1, 220);
+  assert.equal(s.tax.feesTotal, 0);
 });
 
 test("car purchase GST rules", () => {
@@ -69,7 +85,7 @@ test("logbook: gaps count as private", () => {
 
 test("cents per km is capped at 5,000 km", () => {
   const s = summarise({ ...year, car_method: "cpk", odo_year_start: 10000, odo_year_end: 30000 }, {
-    platformMonths: [], otherIncome: [], expenses: [], carTx: [],
+    incomeEntries: [], otherIncome: [], expenses: [], carTx: [],
     trips: [{ odo_start: 10000, odo_end: 10100, purpose: "rideshare" }],
   });
   assert.equal(s.tax.cpkKm, 5000);

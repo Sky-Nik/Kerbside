@@ -65,7 +65,7 @@ export default async function Tax() {
           )}
         </Group>
 
-        <Group title="Platform fees" total={t.feesTotal}><Lines lines={t.feeLines} /></Group>
+        {t.feesTotal !== 0 && <Group title="Platform fees" total={t.feesTotal}><Lines lines={t.feeLines} /></Group>}
         <Group title="Other business expenses" total={t.otherTotal}><Lines lines={t.otherLines} /></Group>
       </div>
 

@@ -33,7 +33,7 @@ export async function loadYear(sb: SupabaseClient, fy: string): Promise<YearSett
 export async function loadYearData(sb: SupabaseClient, fy: string): Promise<YearData> {
   const { start, end } = fyRange(fy);
   const [pm, oi, ex, tr, ct] = await Promise.all([
-    sb.from("platform_months").select("month,platform,lines,fees").gte("month", start).lte("month", end),
+    sb.from("income_entries").select("start_date,platform,lines,fees").gte("start_date", start).lte("start_date", end),
     sb.from("other_income").select("date,amount,gst_free").gte("date", start).lte("date", end),
     sb.from("expenses").select("date,amount,category").gte("date", start).lte("date", end),
     sb.from("trips").select("odo_start,odo_end,purpose").gte("date", start).lte("date", end),
@@ -42,7 +42,7 @@ export async function loadYearData(sb: SupabaseClient, fy: string): Promise<Year
   const err = [pm, oi, ex, tr, ct].find((r) => r.error)?.error;
   if (err) throw new Error(err.message);
   return {
-    platformMonths: pm.data ?? [], otherIncome: oi.data ?? [], expenses: ex.data ?? [],
+    incomeEntries: pm.data ?? [], otherIncome: oi.data ?? [], expenses: ex.data ?? [],
     trips: tr.data ?? [], carTx: (ct.data ?? []) as YearData["carTx"],
   };
 }

@@ -31,33 +31,25 @@ type PlatformDef = {
   passThrough: Record<string, FeeType>; // income line -> fee it is paid on as
 };
 
-// Lines follow each platform's monthly tax summary.
+// Lines match the earnings screen in the driver apps. Net fare is after the platform's service fee,
+// so no fees are entered. ponytail: fees/passThrough kept for old-style rows; add fields back if needed.
+export const INCOME_LINES = ["Net fare", "Promotions", "Tips"] as const;
 export const PLATFORMS: Record<string, PlatformDef> = {
-  Uber: {
-    lines: ["Gross fares", "Split fare fee", "Toll reimbursement", "City / government fees", "Airport fees",
-      "Booking fees", "Other income / incentives", "Tips"],
-    fees: ["Service fees", "Instant pay fees", "Other fees"],
-    passThrough: {
-      "Split fare fee": "Split fare fees",
-      "Toll reimbursement": "Tolls",
-      "City / government fees": "City / government fees",
-      "Airport fees": "Airport fees",
-      "Booking fees": "Booking fees",
-    },
-  },
-  "Uber Eats": {
-    lines: ["Delivery fees", "Delivery incentives", "Toll reimbursement", "Other income", "Tips"],
-    fees: ["Service fees", "Other fees"],
-    passThrough: { "Toll reimbursement": "Tolls" },
-  },
-  DiDi: {
-    lines: ["Gross rider fares", "Booking fee", "Tolls", "Airport fee", "Government levy", "Other income"],
-    fees: ["Service fees", "Other fees"],
-    passThrough: { "Booking fee": "Booking fees", Tolls: "Tolls", "Airport fee": "Airport fees",
-      "Government levy": "City / government fees" },
-  },
-  Shebah: { lines: ["Driver fares", "Tips"], fees: ["Service fees", "Other fees"], passThrough: {} },
+  Uber: { lines: [...INCOME_LINES], fees: [], passThrough: {} },
+  DiDi: { lines: [...INCOME_LINES], fees: [], passThrough: {} },
 };
+
+/** Monday (ISO date) of the week containing `iso`. */
+export function mondayOf(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+export function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
 
 export type Category = { name: string; gst: boolean; use: UseKey; line: string };
 export const CATEGORIES: Category[] = [
@@ -207,7 +199,8 @@ export type YearSettings = {
   odo_year_start?: number | null; odo_year_end?: number | null;
 };
 export type YearData = {
-  platformMonths: { month: string; platform: string; lines: Record<string, unknown>; fees: Record<string, unknown> }[];
+  // ponytail: a week counts in the quarter its Monday falls in.
+  incomeEntries: { start_date: string; platform: string; lines: Record<string, unknown>; fees: Record<string, unknown> }[];
   otherIncome: { date: string; amount: number; gst_free: boolean }[];
   expenses: { date: string; amount: number; category: string }[];
   trips: Trip[];
@@ -223,8 +216,8 @@ export function summarise(y: YearSettings, d: YearData) {
   const feeByType: Record<string, number[]> = Object.fromEntries(FEE_TYPES.map((t) => [t, zero4()]));
   const byLine: Record<string, number[]> = {};
 
-  for (const pm of d.platformMonths) {
-    const i = quarterOf(pm.month);
+  for (const pm of d.incomeEntries) {
+    const i = quarterOf(pm.start_date);
     const r = platformMonth(pm.platform, pm.lines, pm.fees, reg);
     q.sales[i] += r.sales; q.gstSales[i] += r.gst; q.netIncome[i] += r.net;
     q.g11[i] += r.feeTotal; q.gstPurch[i] += r.feeGst; q.fees[i] += r.feeNet;

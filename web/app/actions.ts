@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser, supabaseServer } from "@/lib/supabase/server";
 import { loadYear } from "@/lib/data";
-import { FEE_TYPES, PLATFORMS, PCT_LABELS, type PctKey } from "@/lib/tax";
+import { INCOME_LINES, PLATFORMS, PCT_LABELS, mondayOf, type PctKey } from "@/lib/tax";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const money = (f: FormData, k: string) => {
@@ -28,36 +28,25 @@ export async function signOut() {
   redirect("/login");
 }
 
-export async function savePlatformMonth(f: FormData) {
+/** Saves one week or month of earnings for a platform. Saving the same period again replaces it. */
+export async function saveIncome(f: FormData) {
   const { supabase, user } = await requireUser();
   const platform = str(f, "platform");
-  const def = PLATFORMS[platform];
-  if (!def) throw new Error("Unknown platform");
+  if (!PLATFORMS[platform]) throw new Error("Unknown platform");
+  const period = str(f, "period") === "month" ? "month" : "week";
+  const raw = str(f, period === "week" ? "week" : "month");
+  if (!raw) throw new Error("Pick a date");
+  const start_date = period === "week" ? mondayOf(raw) : `${raw.slice(0, 7)}-01`;
   const lines: Record<string, number> = {};
-  for (const l of def.lines) if (str(f, `line:${l}`) !== "") lines[l] = money(f, `line:${l}`);
-  // Fees: blank = use the pass-through amount worked out from income.
-  const fees: Record<string, number> = {};
-  for (const t of FEE_TYPES) if (str(f, `fee:${t}`) !== "") fees[t] = money(f, `fee:${t}`);
-  const month = str(f, "month");
-  if (!Object.keys(lines).length && !Object.keys(fees).length) {
-    check((await supabase.from("platform_months").delete().match({ month, platform })).error);
-  } else {
-    check((await supabase.from("platform_months").upsert(
-      { user_id: user.id, month, platform, lines, fees }, { onConflict: "user_id,month,platform" })).error);
-  }
+  for (const l of INCOME_LINES) if (str(f, `line:${l}`) !== "") lines[l] = money(f, `line:${l}`);
+  if (!Object.keys(lines).length) throw new Error("Enter at least one amount");
+  check((await supabase.from("income_entries").upsert(
+    { user_id: user.id, period, start_date, platform, lines, fees: {} },
+    { onConflict: "user_id,period,start_date,platform" })).error);
   done();
 }
 
-export async function addOtherIncome(f: FormData) {
-  const { supabase } = await requireUser();
-  check((await supabase.from("other_income").insert({
-    date: str(f, "date"), payer: str(f, "payer"), description: str(f, "description") || null,
-    amount: money(f, "amount"), gst_free: f.get("gst_free") === "on",
-  })).error);
-  done();
-}
-
-const DELETABLE = ["other_income", "trips", "car_transactions"] as const;
+const DELETABLE = ["income_entries", "other_income", "trips", "car_transactions"] as const;
 export async function deleteRow(f: FormData) {
   const table = str(f, "table") as (typeof DELETABLE)[number];
   if (!DELETABLE.includes(table)) throw new Error("Not allowed");
