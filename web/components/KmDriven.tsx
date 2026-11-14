@@ -40,7 +40,7 @@ export function KmDriven({ fy, km, kmSource, businessPct, platformKm }: {
             style={{ backgroundImage: "linear-gradient(90deg, #ffc043 0 32px, transparent 32px 64px)", backgroundSize: "64px 3px" }} />
         </div>
         <div className="absolute inset-x-0 bottom-11 h-1.5 bg-[#ffc043]" />
-        <svg viewBox="0 0 120 52" className="anim-bob absolute bottom-6 left-1/2 w-32 -translate-x-1/2">
+        <svg viewBox="0 0 120 52" className="absolute bottom-6 left-1/2 w-32 -translate-x-1/2">
           <path d="M8 34 L14 22 Q18 15 28 14 L66 13 Q76 13 84 21 L92 28 L108 31 Q114 32 114 38 L114 42 L6 42 L6 37 Q6 34 8 34Z" fill="#000" />
           <path d="M30 18 L62 17 Q70 17 76 23 L80 27 L26 28 Q24 22 30 18Z" fill="#fff" />
           <rect x="52" y="17" width="3" height="11" fill="#000" />
