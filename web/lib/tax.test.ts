@@ -1,7 +1,7 @@
 // Run: npm test   (node's built-in test runner; same scenario was verified in the Excel workbook)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { carPurchaseGst, fyOf, logbook, mondayOf, monthsOf, quarterOf, summarise, type YearSettings } from "./tax.ts";
+import { carPurchaseGst, daysOwned, fyOf, logbook, mondayOf, monthsOf, quarterOf, summarise, type YearSettings } from "./tax.ts";
 
 const year: YearSettings = {
   fy: "2026-27", gst_registered: true, car_method: "logbook",
@@ -67,6 +67,13 @@ test("weekly entries: net fare + promotions + tips, week counted by its Monday",
   assert.equal(s.bas[0]["1A"], 91);
   assert.equal(s.bas[1].G1, 220);
   assert.equal(s.tax.feesTotal, 0);
+});
+
+test("days owned: bought mid-year, sold mid-year, full year", () => {
+  assert.equal(daysOwned("2026-27", "2026-10-15"), 259); // 15 Oct 2026 – 30 Jun 2027
+  assert.equal(daysOwned("2026-27"), 365);
+  assert.equal(daysOwned("2026-27", null, "2026-07-31"), 31);
+  assert.equal(daysOwned("2026-27", "2026-10-15", "2026-10-14"), 0);
 });
 
 test("car purchase GST rules", () => {

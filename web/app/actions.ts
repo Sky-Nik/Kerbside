@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser, supabaseServer } from "@/lib/supabase/server";
 import { loadYear } from "@/lib/data";
-import { INCOME_LINES, PLATFORMS, PCT_LABELS, mondayOf, type PctKey } from "@/lib/tax";
+import { INCOME_LINES, PLATFORMS, PCT_LABELS, daysOwned, mondayOf, type PctKey } from "@/lib/tax";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const money = (f: FormData, k: string) => {
@@ -119,7 +119,14 @@ export async function saveTaxInputs(f: FormData) {
 }
 
 export async function saveVehicle(f: FormData) {
-  await saveYear(str(f, "fy"), {
+  const fy = str(f, "fy");
+  const from = str(f, "car_start_date") || null;
+  const to = str(f, "car_end_date") || null;
+  if (from && to && to < from) throw new Error("End date must be after the start date.");
+  // Days owned this FY drives depreciation (still editable on the Tax page).
+  const days_owned = daysOwned(fy, from, to);
+  await saveYear(fy, {
     vehicle: str(f, "vehicle") || null, odo_year_start: optNum(f, "odo_year_start"), odo_year_end: optNum(f, "odo_year_end"),
+    car_start_date: from, car_end_date: to, days_owned,
   });
 }

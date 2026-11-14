@@ -25,7 +25,10 @@ export default async function Logbook() {
   ]);
   const trips = data ?? [];
   const lb = logbook(trips, year.odo_year_start, year.odo_year_end);
-  const lastOdo = trips[0]?.odo_end ?? "";
+  // First trip starts from the car's starting odometer; later trips continue from the last one.
+  const lastOdo = trips[0]?.odo_end ?? year.odo_year_start ?? "";
+  const tripMin = year.car_start_date && year.car_start_date > start ? year.car_start_date : start;
+  const tripMax = year.car_end_date && year.car_end_date < end ? year.car_end_date : end;
   const privateKm = Math.max(0, lb.total - lb.rideshare - lb.other_abn - lb.employment);
   const segs = [["rideshare", lb.rideshare], ["other_abn", lb.other_abn], ["employment", lb.employment], ["private", privateKm]] as const;
 
@@ -37,7 +40,10 @@ export default async function Logbook() {
         <section className="card-ink rise rise-1 lg:col-span-3">
           <p className="text-sm font-medium text-white/60">Business-use percentage</p>
           <p className="display mt-2 tabular-nums">{pct(lb.businessPct)}</p>
-          <p className="mt-1 text-sm text-white/60">{kmFmt(lb.total)} km logged · est. {kmFmt(lb.annualBusinessKm)} business km this year</p>
+          <p className="mt-1 text-sm text-white/60">
+            {kmFmt(lb.total)} km logged · est. {kmFmt(lb.annualBusinessKm)} business km this year
+            {year.car_start_date && ` · car from ${auDate(year.car_start_date)}`}
+          </p>
           <div className="mt-6 flex h-3 gap-0.5 overflow-hidden rounded-full bg-white/10">
             {lb.total > 0 && segs.map(([k, v]) => v > 0 && <div key={k} className={PURPOSES[k].color} style={{ width: `${(v / lb.total) * 100}%` }} />)}
           </div>
@@ -56,10 +62,23 @@ export default async function Logbook() {
           <input type="hidden" name="fy" value={fy} />
           <label className="field">Car (make, model, rego)<input name="vehicle" defaultValue={year.vehicle ?? ""} placeholder="Toyota Camry Hybrid · ABC123" /></label>
           <div className="grid grid-cols-2 gap-3">
-            <label className="field">Odometer 1 July<input name="odo_year_start" type="number" defaultValue={year.odo_year_start ?? ""} /></label>
-            <label className="field">Odometer 30 June<input name="odo_year_end" type="number" defaultValue={year.odo_year_end ?? ""} /></label>
+            <label className="field">Start date
+              <input name="car_start_date" type="date" min={start} max={end} defaultValue={year.car_start_date ?? ""} />
+            </label>
+            <label className="field">Odometer at start
+              <input name="odo_year_start" type="number" inputMode="numeric" defaultValue={year.odo_year_start ?? ""} />
+            </label>
+            <label className="field"><span>End date <span className="text-[11px] font-normal text-mute">optional</span></span>
+              <input name="car_end_date" type="date" min={start} max={end} defaultValue={year.car_end_date ?? ""} />
+            </label>
+            <label className="field">Odometer at end
+              <input name="odo_year_end" type="number" inputMode="numeric" defaultValue={year.odo_year_end ?? ""} />
+            </label>
           </div>
-          <p className="muted">Annual km × logbook % gives business km for the cents-per-km method.</p>
+          <p className="muted">
+            Bought the car this year? Use the purchase date and odometer. Leave the start date blank if you had the car on 1 July.
+            End is 30 June unless you sold it. These set your trip dates, your first trip’s starting odometer and the depreciation days.
+          </p>
           <button className="btn-secondary btn-sm mt-auto self-start">Save car</button>
         </form>
       </div>
@@ -72,8 +91,8 @@ export default async function Logbook() {
         <h2 className="h2">Add a trip</h2>
         <p className="muted mb-4">For one day, leave “To” blank. Drove only for one purpose all week? Enter the whole week as one entry: the first and last day, with the odometer at the start and end.</p>
         <form action={addTrip} className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-7">
-          <label className="field">From<input name="date" type="date" required min={start} max={end} /></label>
-          <label className="field"><span>To <span className="text-[11px] font-normal text-mute">optional</span></span><input name="end_date" type="date" min={start} max={end} /></label>
+          <label className="field">From<input name="date" type="date" required min={tripMin} max={tripMax} /></label>
+          <label className="field"><span>To <span className="text-[11px] font-normal text-mute">optional</span></span><input name="end_date" type="date" min={tripMin} max={tripMax} /></label>
           <label className="field">Odometer start<input name="odo_start" type="number" required defaultValue={lastOdo} /></label>
           <label className="field">Odometer end<input name="odo_end" type="number" required /></label>
           <label className="field">Purpose

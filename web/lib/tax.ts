@@ -129,6 +129,13 @@ export function monthsOf(fy: string, q: number): string[] {
     return `${y}-${String(m).padStart(2, "0")}-01`;
   });
 }
+/** Days the car was owned within the FY (inclusive), given optional purchase / sale dates. */
+export function daysOwned(fy: string, from?: string | null, to?: string | null): number {
+  const { start, end } = fyRange(fy);
+  const a = from && from > start ? from : start;
+  const b = to && to < end ? to : end;
+  return Math.max(0, Math.round((Date.parse(b) - Date.parse(a)) / 86400000) + 1);
+}
 export const currentFy = () => fyOf(new Date().toISOString().slice(0, 10));
 export function fyOptions(around = currentFy(), back = 3): string[] {
   const s = Number(around.slice(0, 4));
@@ -196,7 +203,9 @@ export type YearSettings = {
   fy: string; gst_registered: boolean; car_method: "logbook" | "cpk"; pct: Pct;
   car_limit: number; cpk_rate: number; gov_payments: number; other_business_income: number;
   car_cost: number; opening_value: number; days_owned: number; effective_life: number; loan_interest: number;
+  // Odometer at the start/end of the period you had the car this FY (defaults 1 July / 30 June).
   odo_year_start?: number | null; odo_year_end?: number | null;
+  car_start_date?: string | null; car_end_date?: string | null;
 };
 export type YearData = {
   // ponytail: a week counts in the quarter its Monday falls in.
