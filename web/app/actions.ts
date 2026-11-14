@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser, supabaseServer } from "@/lib/supabase/server";
 import { loadYear } from "@/lib/data";
-import { INCOME_LINES, PLATFORMS, PCT_LABELS, daysOwned, mondayOf, type PctKey } from "@/lib/tax";
+import { INCOME_LINES, PLATFORMS, PCT_LABELS, daysOwned, type PctKey } from "@/lib/tax";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const money = (f: FormData, k: string) => {
@@ -28,19 +28,19 @@ export async function signOut() {
   redirect("/login");
 }
 
-/** Adds earnings for a platform to a week or month. Each save is a new entry (several per week are fine). */
+/** Adds earnings for a platform over a date range (e.g. one week). Each save is a new entry. */
 export async function saveIncome(f: FormData) {
   const { supabase, user } = await requireUser();
   const platform = str(f, "platform");
   if (!PLATFORMS[platform]) throw new Error("Unknown platform");
-  const period = str(f, "period") === "month" ? "month" : "week";
-  const raw = str(f, period === "week" ? "week" : "month");
-  if (!raw) throw new Error("Pick a date");
-  const start_date = period === "week" ? mondayOf(raw) : `${raw.slice(0, 7)}-01`;
+  const start_date = str(f, "from");
+  const end_date = str(f, "to") || start_date;
+  if (!start_date) throw new Error("Pick a 'from' date");
+  if (end_date < start_date) throw new Error("'To' must be on or after 'from'");
   const lines: Record<string, number> = {};
   for (const l of INCOME_LINES) if (str(f, `line:${l}`) !== "") lines[l] = money(f, `line:${l}`);
   if (!Object.keys(lines).length) throw new Error("Enter at least one amount");
-  check((await supabase.from("income_entries").insert({ user_id: user.id, period, start_date, platform, lines, fees: {} })).error);
+  check((await supabase.from("income_entries").insert({ user_id: user.id, start_date, end_date, platform, lines, fees: {} })).error);
   done();
 }
 

@@ -1,61 +1,56 @@
 "use client";
 import { useRef, useState } from "react";
 import { saveIncome } from "@/app/actions";
-import { INCOME_LINES } from "@/lib/tax";
+import { INCOME_LINES, addDays } from "@/lib/tax";
 import { Icon } from "./Icon";
 
 const PLATFORMS = ["Uber", "DiDi"] as const;
 
-export function IncomeForm({ min, max, defaultWeek }: { min: string; max: string; defaultWeek: string }) {
-  const [period, setPeriod] = useState<"week" | "month">("week");
+/** One entry = one platform's earnings between two dates (usually a Monday–Sunday week). */
+export function IncomeForm({ defaultFrom }: { defaultFrom: string }) {
   const [platform, setPlatform] = useState<(typeof PLATFORMS)[number]>("Uber");
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(addDays(defaultFrom, 6));
   const [msg, setMsg] = useState<string | null>(null);
   const form = useRef<HTMLFormElement>(null);
 
   return (
     <form
+      ref={form}
+      className="space-y-5"
       action={async (f) => {
         setMsg(null);
         try {
           await saveIncome(f);
           const added = INCOME_LINES.reduce((s, l) => s + (Number(f.get(`line:${l}`)) || 0), 0);
           setMsg(`Added $${added.toFixed(2)}`);
-          // keep the date (handy for entering the next platform), clear the amounts
+          // keep the dates (handy for entering the other platform for the same week), clear the amounts
           form.current?.querySelectorAll<HTMLInputElement>("input[name^='line:']").forEach((i) => (i.value = ""));
         } catch (e) {
           setMsg((e as Error).message);
         }
       }}
-      ref={form}
-      className="space-y-5"
     >
-      <input type="hidden" name="period" value={period} />
       <input type="hidden" name="platform" value={platform} />
-      <div className="flex flex-wrap gap-3">
-        <div className="seg" role="radiogroup" aria-label="Platform">
-          {PLATFORMS.map((p) => (
-            <button key={p} type="button" role="radio" aria-checked={platform === p}
-              onClick={() => setPlatform(p)} className={`tab ${platform === p ? "tab-on" : ""}`}>{p}</button>
-          ))}
-        </div>
-        <div className="seg" role="radiogroup" aria-label="Period">
-          {(["week", "month"] as const).map((p) => (
-            <button key={p} type="button" role="radio" aria-checked={period === p}
-              onClick={() => setPeriod(p)} className={`tab ${period === p ? "tab-on" : ""}`}>{p === "week" ? "Weekly" : "Monthly"}</button>
-          ))}
-        </div>
+      <div className="seg" role="radiogroup" aria-label="Platform">
+        {PLATFORMS.map((p) => (
+          <button key={p} type="button" role="radio" aria-checked={platform === p}
+            onClick={() => setPlatform(p)} className={`tab ${platform === p ? "tab-on" : ""}`}>{p}</button>
+        ))}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {period === "week" ? (
-          <label className="field">Any day in the week
-            <input name="week" type="date" required min={min} max={max} defaultValue={defaultWeek} />
-          </label>
-        ) : (
-          <label className="field">Month
-            <input name="month" type="month" required min={min.slice(0, 7)} max={max.slice(0, 7)} defaultValue={defaultWeek.slice(0, 7)} />
-          </label>
-        )}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <label className="field">From
+          <input name="from" type="date" required value={from}
+            onChange={(e) => {
+              const v = e.currentTarget.value;
+              setFrom(v);
+              if (v) setTo(addDays(v, 6)); // a week by default; change "To" for other ranges
+            }} />
+        </label>
+        <label className="field">To
+          <input name="to" type="date" required min={from} value={to} onChange={(e) => setTo(e.currentTarget.value)} />
+        </label>
         {INCOME_LINES.map((l) => (
           <label key={l} className="field">{l}
             <input name={`line:${l}`} type="number" step="0.01" inputMode="decimal" placeholder="0.00" />
@@ -66,7 +61,7 @@ export function IncomeForm({ min, max, defaultWeek }: { min: string; max: string
       <div className="flex flex-wrap items-center gap-4">
         <button className="btn"><Icon name="plus" size={18} />Add {platform} earnings</button>
         {msg && <span className={`text-sm ${msg.startsWith("Added") ? "text-pos" : "text-neg"}`}>{msg}</span>}
-        <span className="muted">Copy from the {platform} driver app. Each entry adds to the total, so you can log a week in one go or day by day.</span>
+        <span className="muted">Copy the totals for these dates from the {platform} driver app. “To” is set a week after “From”; change it for any other period.</span>
       </div>
     </form>
   );

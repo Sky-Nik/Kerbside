@@ -1,7 +1,7 @@
 // Run: npm test   (node's built-in test runner; same scenario was verified in the Excel workbook)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { carPurchaseGst, daysOwned, fyOf, logbook, mondayOf, monthsOf, quarterOf, summarise, type YearSettings } from "./tax.ts";
+import { carPurchaseGst, daysOwned, overlappingIds, fyOf, logbook, mondayOf, monthsOf, quarterOf, summarise, type YearSettings } from "./tax.ts";
 
 const year: YearSettings = {
   fy: "2026-27", gst_registered: true, car_method: "logbook",
@@ -74,6 +74,16 @@ test("days owned: bought mid-year, sold mid-year, full year", () => {
   assert.equal(daysOwned("2026-27"), 365);
   assert.equal(daysOwned("2026-27", null, "2026-07-31"), 31);
   assert.equal(daysOwned("2026-27", "2026-10-15", "2026-10-14"), 0);
+});
+
+test("overlapping income ranges are flagged per platform", () => {
+  const ids = overlappingIds([
+    { id: "a", platform: "Uber", start_date: "2026-11-02", end_date: "2026-11-08" },
+    { id: "b", platform: "Uber", start_date: "2026-11-08", end_date: "2026-11-14" }, // shares the 8th
+    { id: "c", platform: "Uber", start_date: "2026-11-15", end_date: "2026-11-21" },
+    { id: "d", platform: "DiDi", start_date: "2026-11-02", end_date: "2026-11-08" },
+  ]);
+  assert.deepEqual([...ids].sort(), ["a", "b"]);
 });
 
 test("car purchase GST rules", () => {

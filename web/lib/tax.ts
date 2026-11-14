@@ -45,6 +45,16 @@ export function mondayOf(iso: string): string {
   d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
   return d.toISOString().slice(0, 10);
 }
+/** Ids of entries whose date range overlaps another entry for the same platform (would double count). */
+export function overlappingIds(entries: { id: string; platform: string; start_date: string; end_date: string }[]): Set<string> {
+  const out = new Set<string>();
+  const sorted = [...entries].sort((a, b) => a.platform.localeCompare(b.platform) || a.start_date.localeCompare(b.start_date));
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1], cur = sorted[i];
+    if (prev.platform === cur.platform && cur.start_date <= prev.end_date) out.add(prev.id).add(cur.id);
+  }
+  return out;
+}
 export function addDays(iso: string, n: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
@@ -208,7 +218,7 @@ export type YearSettings = {
   car_start_date?: string | null; car_end_date?: string | null;
 };
 export type YearData = {
-  // ponytail: a week counts in the quarter its Monday falls in.
+  // ponytail: an entry counts in the quarter its start ("From") date falls in.
   incomeEntries: { start_date: string; platform: string; lines: Record<string, unknown>; fees: Record<string, unknown> }[];
   otherIncome: { date: string; amount: number; gst_free: boolean }[];
   expenses: { date: string; amount: number; category: string }[];
