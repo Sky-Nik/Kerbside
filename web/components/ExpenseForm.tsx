@@ -2,7 +2,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
-import { CATEGORIES } from "@/lib/tax";
+import { CATEGORIES, todayAu } from "@/lib/tax";
+import { parseReceipt } from "@/lib/receiptOcr";
 import { attachReceipt } from "./receipt";
 import { Icon } from "./Icon";
 import { Tip } from "./Tip";
@@ -15,7 +16,36 @@ export function ExpenseForm({ min, max, defaultDate }: { min: string; max: strin
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
+  const [scan, setScan] = useState<string | null>(null);
+
+  /** Read the receipt photo on this device (tesseract.js) and fill in what it finds. */
+  async function scanReceipt() {
+    if (!file || !form.current) return;
+    setScan("Reading receipt… (the first scan downloads about 4 MB of text-recognition data)");
+    try {
+      const { createWorker } = await import("tesseract.js");
+      const worker = await createWorker("eng");
+      const { data } = await worker.recognize(file);
+      await worker.terminate();
+      const g = parseReceipt(data.text, todayAu());
+      const el = form.current.elements;
+      const set = (name: string, v: string | null) => { const i = el.namedItem(name) as HTMLInputElement | HTMLSelectElement | null; if (i && v) i.value = v; };
+      set("amount", g.total != null ? g.total.toFixed(2) : null);
+      set("description", g.supplier);
+      set("category", g.category);
+      const outOfRange = g.date && (g.date < min || g.date > max);
+      if (!outOfRange) set("date", g.date);
+      const found = [g.total != null && "total", g.date && "date", g.supplier && "supplier", g.category && "category"].filter(Boolean);
+      setScan(found.length
+        ? `Filled in ${found.join(", ")}${g.gst != null ? ` (receipt shows GST ${g.gst.toFixed(2)})` : ""}. Please check before saving.${outOfRange ? ` The receipt is dated ${g.date}, outside this quarter – switch quarter if that’s right.` : ""}`
+        : "Couldn’t read this receipt clearly. Please type the details in.");
+    } catch (e) {
+      setScan(`Scanning didn’t work: ${(e as Error).message}. Please type the details in.`);
+    }
+  }
+
   function pick(f: File | null) {
+    setScan(null);
     setFile(f);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f && f.type.startsWith("image/") ? URL.createObjectURL(f) : null);
@@ -74,6 +104,16 @@ export function ExpenseForm({ min, max, defaultDate }: { min: string; max: strin
         {!file && <span className="relative flex items-center gap-1.5 text-xs text-mute">Snap it with your phone camera · max 10 MB<Tip k="receipt" /></span>}
         <input type="file" accept="image/*,application/pdf" className="sr-only" onChange={(e) => pick(e.currentTarget.files?.[0] ?? null)} />
       </label>
+
+      {file && file.type.startsWith("image/") && (
+        <div className="flex flex-wrap items-center gap-3 lg:col-span-2">
+          <button type="button" className="btn-secondary btn-sm" onClick={scanReceipt} disabled={!!scan && scan.startsWith("Reading")}>
+            <Icon name="receipt" size={16} />Scan receipt
+          </button>
+          <Tip k="scan" />
+          {scan && <span className="text-sm text-ink-2">{scan}</span>}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-4 lg:col-span-2">
         <button className="btn" disabled={busy}>{busy ? "Saving…" : <><Icon name="plus" size={18} />Add expense</>}</button>
