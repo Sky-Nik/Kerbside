@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+}
+
+body {
+  background: #f6f7f9;
+  color: #0f172a;
+}
+
+@layer components {
+  .card { @apply rounded-lg border border-slate-200 bg-white p-4 shadow-sm; }
+  .field { @apply flex flex-col gap-1 text-sm font-medium text-slate-700; }
+  .field input, .field select, .field textarea, .inp {
+    @apply rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-normal text-slate-900 focus:border-blue-600 focus:outline-none;
+  }
+  .btn { @apply rounded-md bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50; }
+  .btn-ghost { @apply rounded-md px-2 py-1 text-sm text-slate-600 hover:bg-slate-100; }
+  .btn-danger { @apply rounded px-2 py-0.5 text-xs text-red-700 hover:bg-red-50; }
+  .tbl { @apply w-full text-sm; }
+  .tbl th { @apply border-b border-slate-200 px-2 py-1.5 text-left font-medium text-slate-500; }
+  .tbl td { @apply border-b border-slate-100 px-2 py-1.5; }
+  .num { @apply text-right tabular-nums; }
+  .h1 { @apply text-xl font-semibold; }
+  .h2 { @apply text-base font-semibold text-slate-800; }
+  .muted { @apply text-xs text-slate-500; }
+  .tab { @apply rounded-md px-3 py-1 text-sm text-slate-600 hover:bg-slate-200; }
+  .tab-on { @apply bg-blue-700 text-white hover:bg-blue-700; }
+}
