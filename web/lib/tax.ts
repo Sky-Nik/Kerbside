@@ -216,6 +216,8 @@ export type YearSettings = {
   fy: string; gst_registered: boolean; car_method: "logbook" | "cpk"; pct: Pct;
   car_limit: number; cpk_rate: number; gov_payments: number; other_business_income: number;
   car_cost: number; opening_value: number; days_owned: number; effective_life: number; loan_interest: number;
+  // Other parts of your return, for the refund / amount-owing estimate (optional)
+  wages?: number; tax_withheld?: number; payg_instalments?: number; other_income?: number; other_deductions?: number;
   // Odometer at the start/end of the period you had the car this FY (defaults 1 July / 30 June).
   odo_year_start?: number | null; odo_year_end?: number | null;
   car_start_date?: string | null; car_end_date?: string | null;
@@ -318,10 +320,76 @@ export function summarise(y: YearSettings, d: YearData) {
       net: round2(sum(q.gstSales) - sum(q.gstPurch)) },
     profitByQuarter: [0, 1, 2, 3].map((i) => round2(q.netIncome[i] - q.fees[i] - q.expenses[i])),
     logbook: lb, annualCarPct, p8,
+    estimate: estimateTax(y.fy, round2(income - totalExpenses), {
+      wages: num(y.wages), taxWithheld: num(y.tax_withheld), paygInstalments: num(y.payg_instalments),
+      otherIncome: num(y.other_income), otherDeductions: num(y.other_deductions),
+    }),
     tax: {
       businessIncome: sum(q.netIncome), income, carLines, depreciation, interest, logbookTotal, cpkKm, cpkTotal,
       carClaim, feeLines, feesTotal, otherLines, otherTotal, totalExpenses, profit: round2(income - totalExpenses),
       dep: { carGstClaimed, costBase, depFull, depreciation, closing: round2(num(y.opening_value) - depFull) },
     },
+  };
+}
+
+// ---------- income tax estimate (Australian residents) ----------
+// Sources: ATO "Tax rates – Australian residents" (2025-26: 16%; 2026-27: 15%; 2027-28: 14%),
+// Medicare levy 2% with low-income reduction, Low income tax offset, Small business income tax offset.
+const RATES: Record<string, [number, number][]> = {
+  // [upper limit of bracket, marginal rate]
+  "2025-26": [[18200, 0], [45000, 0.16], [135000, 0.3], [190000, 0.37], [Infinity, 0.45]],
+  "2026-27": [[18200, 0], [45000, 0.15], [135000, 0.3], [190000, 0.37], [Infinity, 0.45]],
+  "2027-28": [[18200, 0], [45000, 0.14], [135000, 0.3], [190000, 0.37], [Infinity, 0.45]],
+};
+// ponytail: 2026-27+ Medicare thresholds not yet published; 2025-26 singles figures used until the ATO updates them.
+const MEDICARE_LOW: Record<string, [number, number]> = { "2025-26": [28011, 35013] };
+
+export function incomeTax(taxable: number, fy: string): number {
+  const br = RATES[fy] ?? RATES["2026-27"];
+  let tax = 0, lower = 0;
+  for (const [upper, rate] of br) {
+    if (taxable > lower) tax += (Math.min(taxable, upper) - lower) * rate;
+    lower = upper;
+  }
+  return round2(tax);
+}
+
+export function medicareLevy(taxable: number, fy: string): number {
+  const [low] = MEDICARE_LOW[fy] ?? MEDICARE_LOW["2025-26"];
+  if (taxable <= low) return 0;
+  return round2(Math.min(taxable * 0.02, (taxable - low) * 0.1)); // shade-in: 10c per $ over the lower threshold
+}
+
+/** Low income tax offset: $700, less 5c/$ from $37,500 to $45,000, then 1.5c/$ (nil at $66,667). */
+export function lowIncomeOffset(taxable: number): number {
+  if (taxable <= 37500) return 700;
+  if (taxable <= 45000) return round2(700 - (taxable - 37500) * 0.05);
+  return round2(Math.max(0, 325 - (taxable - 45000) * 0.015));
+}
+
+/** Small business income tax offset: 16% of the tax on net small business income, max $1,000. */
+export function smallBusinessOffset(netSmallBusinessIncome: number, taxable: number, basicTax: number): number {
+  if (netSmallBusinessIncome <= 0 || taxable <= 0) return 0;
+  return round2(Math.min(1000, 0.16 * basicTax * Math.min(1, netSmallBusinessIncome / taxable)));
+}
+
+export type TaxInputs = { wages: number; taxWithheld: number; paygInstalments: number; otherIncome: number; otherDeductions: number };
+
+/** Estimated income tax result. Positive `result` = refund, negative = amount to pay. */
+export function estimateTax(fy: string, businessProfit: number, inp: TaxInputs) {
+  // ponytail: a business loss is treated as nil here; under the non-commercial loss rules it usually can't
+  // reduce other income and is deferred. Upgrade path: implement the four NCL tests.
+  const businessCounted = Math.max(0, businessProfit);
+  const taxable = Math.max(0, Math.floor(num(inp.wages) + num(inp.otherIncome) + businessCounted - num(inp.otherDeductions)));
+  const basic = incomeTax(taxable, fy);
+  const lito = Math.min(basic, lowIncomeOffset(taxable));
+  const sbito = Math.min(Math.max(0, basic - lito), smallBusinessOffset(businessCounted, taxable, basic));
+  const taxAfterOffsets = round2(Math.max(0, basic - lito - sbito));
+  const medicare = medicareLevy(taxable, fy);
+  const totalTax = round2(taxAfterOffsets + medicare);
+  const credits = round2(num(inp.taxWithheld) + num(inp.paygInstalments));
+  return {
+    taxable, basic, lito, sbito, medicare, totalTax, credits, result: round2(credits - totalTax),
+    lossDeferred: businessProfit < 0 ? round2(-businessProfit) : 0,
   };
 }

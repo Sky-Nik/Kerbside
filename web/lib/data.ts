@@ -22,6 +22,7 @@ export function defaultYear(fy: string): YearSettings {
     pct: { car: [0, 0, 0, 0], phone: [0, 0, 0, 0], internet: [0, 0, 0, 0], music: [0, 0, 0, 0], computer: [0, 0, 0, 0] },
     car_limit: r.carLimit, cpk_rate: r.cpk, gov_payments: 0, other_business_income: 0, car_cost: 0,
     opening_value: 0, days_owned: 365, effective_life: 8, loan_interest: 0, odo_year_start: null, odo_year_end: null,
+    wages: 0, tax_withheld: 0, payg_instalments: 0, other_income: 0, other_deductions: 0,
     car_start_date: null, car_end_date: null,
   };
 }

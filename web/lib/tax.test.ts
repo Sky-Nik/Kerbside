@@ -1,7 +1,7 @@
 // Run: npm test   (node's built-in test runner; same scenario was verified in the Excel workbook)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { carPurchaseGst, daysOwned, overlappingIds, round2, fyOf, logbook, mondayOf, monthsOf, quarterOf, summarise, type YearSettings } from "./tax.ts";
+import { carPurchaseGst, daysOwned, estimateTax, incomeTax, lowIncomeOffset, medicareLevy, overlappingIds, round2, fyOf, logbook, mondayOf, monthsOf, quarterOf, summarise, type YearSettings } from "./tax.ts";
 
 const year: YearSettings = {
   fy: "2026-27", gst_registered: true, car_method: "logbook",
@@ -133,4 +133,28 @@ test("cents per km is capped at 5,000 km", () => {
   });
   assert.equal(s.tax.cpkKm, 5000);
   assert.equal(s.tax.carClaim, 4400);
+});
+
+test("income tax estimate uses ATO 2026-27 rates, offsets and Medicare levy", () => {
+  assert.equal(incomeTax(18200, "2026-27"), 0);
+  assert.equal(incomeTax(60000, "2026-27"), 8520); // 26,800 × 15% + 15,000 × 30%
+  assert.equal(incomeTax(60000, "2025-26"), 8788); // 16% bracket
+  assert.equal(lowIncomeOffset(37500), 700);
+  assert.equal(lowIncomeOffset(45000), 325);
+  assert.equal(lowIncomeOffset(60000), 100);
+  assert.equal(lowIncomeOffset(70000), 0);
+  assert.equal(medicareLevy(28000, "2026-27"), 0);
+  assert.equal(medicareLevy(30000, "2026-27"), 198.9); // shading-in: 10% over $28,011
+  assert.equal(medicareLevy(60000, "2026-27"), 1200);
+  // wages 50k with 6k withheld, business profit 10k
+  const e = estimateTax("2026-27", 10000, { wages: 50000, taxWithheld: 6000, paygInstalments: 0, otherIncome: 0, otherDeductions: 0 });
+  assert.equal(e.taxable, 60000);
+  assert.equal(e.lito, 100);
+  assert.equal(e.sbito, round2(0.16 * 8520 * (10000 / 60000))); // 227.2
+  assert.equal(e.totalTax, round2(8520 - 100 - 227.2 + 1200));
+  assert.equal(e.result, round2(6000 - e.totalTax)); // negative = to pay
+  // a business loss doesn't reduce wages (deferred)
+  const l = estimateTax("2026-27", -3000, { wages: 40000, taxWithheld: 0, paygInstalments: 0, otherIncome: 0, otherDeductions: 0 });
+  assert.equal(l.taxable, 40000);
+  assert.equal(l.lossDeferred, 3000);
 });

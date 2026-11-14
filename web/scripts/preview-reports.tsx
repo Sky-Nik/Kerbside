@@ -15,7 +15,7 @@ const base: YearSettings = { fy, gst_registered: true, car_method: "logbook", pc
   effective_life: 8, loan_interest: 0 };
 const year = { ...base, car_limit: 69674, car_start_date: "2026-10-23", odo_year_start: 423, vehicle: "Chery Tiggo 4 Ultimate",
   pct: { ...base.pct, car: [0, 0.8, 0.8, 0.8], phone: [0, 0.5, 0.5, 0.5] }, car_cost: 28000, opening_value: 25963.64,
-  days_owned: 250, loan_interest: 1200 };
+  days_owned: 250, loan_interest: 1200, wages: 42000, tax_withheld: 4200 };
 const incomeRows = [
   { id: "1", start_date: "2026-11-02", end_date: "2026-11-08", platform: "Uber", lines: { "Net fare": 97.12, Tips: 3 }, fees: {} },
   { id: "2", start_date: "2026-11-02", end_date: "2026-11-08", platform: "DiDi", lines: { "Net fare": 153.6, Promotions: 51 }, fees: { "Service fees": 30.5 } },

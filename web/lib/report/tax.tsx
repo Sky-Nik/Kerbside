@@ -53,7 +53,8 @@ export function TaxReport({ r }: { r: ReportData }) {
           greeting={`Your year on the road, ${first}.`}
           intro="This summary brings together your income, expenses, car logbook and BAS for the financial year, laid out in the same order as the ATO’s business schedule so you can lodge your own return or hand it to your tax agent."
           left={[["Business income (ex GST)", money(t.income)], ["Total expenses", money(t.totalExpenses)],
-            [S.basYear.net < 0 ? "GST refunded via BAS" : "GST paid via BAS", money(Math.abs(S.basYear.net))]]}
+            [S.basYear.net < 0 ? "GST refunded via BAS" : "GST paid via BAS", money(Math.abs(S.basYear.net))],
+            [S.estimate.result >= 0 ? "Estimated tax refund" : "Estimated tax to pay", money(Math.abs(S.estimate.result))]]}
           headline={{ label: t.profit < 0 ? "Net business loss" : "Net business profit", value: money(Math.abs(t.profit)) }}
           stats={[
             { value: `${lb.annualBusinessKm.toLocaleString("en-AU")} km`, label: "Business kilometres" },
@@ -86,7 +87,35 @@ export function TaxReport({ r }: { r: ReportData }) {
 
       {/* 2b. How to lodge */}
       <Sheet name={r.name} abn={r.abn} docTitle={docTitle}>
-        <Title title="How to lodge" sub="myTax, step by step" />
+        <Title title="Your estimated tax result" sub={`Income tax for ${fySlash(r.fy)} · Australian resident rates`} />
+        <View wrap={false} style={{ flexDirection: "row", alignItems: "center", backgroundColor: S.estimate.result >= 0 ? "#E9F7EF" : "#FFF0EE",
+          borderRadius: 8, padding: 16, marginBottom: 10 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 12, color: C.ink2 }}>{S.estimate.result >= 0 ? "Estimated refund" : "Estimated tax to pay"}</Text>
+            <Text style={{ fontSize: 30, letterSpacing: -0.6, color: S.estimate.result >= 0 ? C.pos : C.neg, marginTop: 4 }}>{money(Math.abs(S.estimate.result))}</Text>
+          </View>
+          <View style={{ width: 250 }}>
+            {([
+              ["Taxable income", money(S.estimate.taxable)],
+              ["Tax on taxable income", money(S.estimate.basic)],
+              ...(S.estimate.lito ? [["Less low income tax offset", `-${money(S.estimate.lito)}`]] : []),
+              ...(S.estimate.sbito ? [["Less small business income tax offset", `-${money(S.estimate.sbito)}`]] : []),
+              ["Plus Medicare levy", money(S.estimate.medicare)],
+              ["Total tax", money(S.estimate.totalTax)],
+              ["Less tax already paid", `-${money(S.estimate.credits)}`],
+            ] as [string, string][]).map(([k, v]) => (
+              <View key={k} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 2.5 }}>
+                <Text style={{ fontSize: 8.5, color: C.ink2 }}>{k}</Text><Text style={{ fontSize: 8.5 }}>{v}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+        <Text style={{ ...s.small, marginBottom: 18 }}>
+          Includes business profit{y.wages ? `, wages ${money(y.wages)} (tax withheld ${money(y.tax_withheld ?? 0)})` : ""}{y.other_income ? `, other income ${money(y.other_income)}` : ""}.
+          {S.estimate.lossDeferred ? ` The business loss of ${money(S.estimate.lossDeferred)} isn’t offset against other income (non-commercial loss rules usually defer it).` : ""}
+          {" "}Not included: HELP/study loan repayments, Medicare levy surcharge, private health insurance and other offsets. The ATO’s notice of assessment is final.
+        </Text>
+        <Text style={s.blockTitle}>How to lodge</Text>
         <Steps items={[
           "Sign in to myGov, open the ATO service and start your tax return in myTax.",
           "When you personalise the return, choose the business / sole trader income option. This adds the Business and professional items schedule.",

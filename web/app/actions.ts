@@ -116,6 +116,8 @@ export async function saveTaxInputs(f: FormData) {
     car_cost: money(f, "car_cost"), opening_value: money(f, "opening_value"),
     days_owned: Number(str(f, "days_owned")) || 0, effective_life: Number(str(f, "effective_life")) || 8,
     loan_interest: money(f, "loan_interest"),
+    wages: money(f, "wages"), tax_withheld: money(f, "tax_withheld"), payg_instalments: money(f, "payg_instalments"),
+    other_income: money(f, "other_income"), other_deductions: money(f, "other_deductions"),
   });
 }
 
