@@ -67,7 +67,7 @@ export function BasReport({ r, q }: { r: ReportData; q: number }) {
         <Text style={s.blockTitle}>How to lodge</Text>
         <Steps items={[
           "Sign in to myGov and open the Australian Taxation Office (ATO) service, or use Online services for business.",
-          `Go to Lodgments → Activity statements and open the statement for ${QN[q]}.`,
+          `Go to Lodgments > Activity statements and open the statement for ${QN[q]}.`,
           "Enter G1, 1A and 1B from the boxes above. Tick Yes for “G1 includes GST”.",
           "If the statement also shows a PAYG instalment, use the amount or rate the ATO has printed there.",
           `Lodge and pay (or receive your refund) by ${BAS_DUE[q]}. Lodging through a registered tax or BAS agent may give you more time.`,

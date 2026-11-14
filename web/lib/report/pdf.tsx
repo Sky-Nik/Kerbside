@@ -67,12 +67,14 @@ export function Sheet({ name, abn, docTitle, children }: { name: string; abn: st
       </View>
       {children}
       <View fixed style={s.footer}>
-        <View>
+        <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 0, paddingRight: 90 }}>
           <Text>Kerbside · {docTitle}</Text>
           <Text>Prepared from your Kerbside records. Not an ATO document – check figures against your records before lodging.</Text>
         </View>
-        <Text style={{ fontSize: 9, color: C.ink }} render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
       </View>
+      {/* Page number sits directly on the page: react-pdf misplaces `render` text inside positioned rows. */}
+      <Text fixed style={{ position: "absolute", bottom: 32, right: 40, fontSize: 9, color: C.ink }}
+        render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
     </Page>
   );
 }
@@ -134,19 +136,20 @@ export function Steps({ items }: { items: string[] }) {
 
 /** Simple table for registers (expenses, trips, income entries). Widths are flex weights. */
 export function Table({ cols, rows }: { cols: { h: string; w: number; right?: boolean }[]; rows: string[][] }) {
-  const cell = (t: string, c: (typeof cols)[number], bold = false) => (
-    <Text style={{ flex: c.w, textAlign: c.right ? "right" : "left", paddingHorizontal: 4, fontFamily: bold ? "Helvetica-Bold" : "Helvetica" }}>{t}</Text>
+  const cell = (t: string, c: (typeof cols)[number], key: number, bold = false) => (
+    <Text key={key} style={{ flexGrow: c.w, flexShrink: 1, flexBasis: 0, textAlign: c.right ? "right" : "left", paddingHorizontal: 4,
+      fontFamily: bold ? "Helvetica-Bold" : "Helvetica" }}>{t}</Text>
   );
   return (
     <View style={{ fontSize: 7.8 }}>
-      <View fixed style={{ flexDirection: "row", borderBottomWidth: 0.8, borderBottomColor: C.ink, paddingVertical: 5, color: C.mute }}>
-        {cols.map((c, i) => <View key={i} style={{ flex: c.w }}>{cell(c.h, { ...c, w: 1 }, true)}</View>)}
+      <View style={{ flexDirection: "row", borderBottomWidth: 0.8, borderBottomColor: C.ink, paddingVertical: 5, color: C.mute }}>
+        {cols.map((c, i) => cell(c.h, c, i, true))}
       </View>
       {rows.length === 0 && <Text style={{ padding: 6, color: C.mute }}>No records.</Text>}
       {rows.map((r, i) => (
         <View key={i} wrap={false} style={{ flexDirection: "row", paddingVertical: 4.5, backgroundColor: i % 2 ? "#FFFFFF" : "#FAFAFA",
           borderBottomWidth: 0.4, borderBottomColor: C.line }}>
-          {r.map((t, j) => <View key={j} style={{ flex: cols[j].w }}>{cell(t, { ...cols[j], w: 1 })}</View>)}
+          {r.map((t, j) => cell(t, cols[j], j))}
         </View>
       ))}
     </View>

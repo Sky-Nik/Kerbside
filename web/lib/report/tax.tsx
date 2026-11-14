@@ -52,8 +52,9 @@ export function TaxReport({ r }: { r: ReportData }) {
           title="Tax summary"
           greeting={`Your year on the road, ${first}.`}
           intro="This summary brings together your income, expenses, car logbook and BAS for the financial year, laid out in the same order as the ATO’s business schedule so you can lodge your own return or hand it to your tax agent."
-          left={[["Business income (ex GST)", money(t.income)], ["Total expenses", money(t.totalExpenses)], ["GST paid via BAS", money(S.basYear.net)]]}
-          headline={{ label: t.profit < 0 ? "Net business loss" : "Net business profit", value: money(t.profit) }}
+          left={[["Business income (ex GST)", money(t.income)], ["Total expenses", money(t.totalExpenses)],
+            [S.basYear.net < 0 ? "GST refunded via BAS" : "GST paid via BAS", money(Math.abs(S.basYear.net))]]}
+          headline={{ label: t.profit < 0 ? "Net business loss" : "Net business profit", value: money(Math.abs(t.profit)) }}
           stats={[
             { value: `${lb.annualBusinessKm.toLocaleString("en-AU")} km`, label: "Business kilometres" },
             { value: lb.total ? pctTxt(lb.businessPct) : "No logbook", label: "Car business use" },
@@ -79,17 +80,36 @@ export function TaxReport({ r }: { r: ReportData }) {
         <LabelBox label="P" desc="All other expenses" value={dollars(p.P)} />
         <LabelBox label="T" desc="Total expenses" value={dollars(p.T)} />
         <Text style={s.blockTitle}>Net result</Text>
-        <LabelBox label="Z" desc="Net income or loss from business (non-primary production)" value={dollars(p.Z)}
+        <LabelBox label="Z" desc="Net income or loss from business (non-primary production)" value={p.Z < 0 ? `${dollars(-p.Z)}  L` : dollars(p.Z)}
           note="Transfer to supplementary tax return question 15, label C (no cents). Print L if it’s a loss." />
-        <Text style={s.blockTitle}>How to lodge in myTax</Text>
+      </Sheet>
+
+      {/* 2b. How to lodge */}
+      <Sheet name={r.name} abn={r.abn} docTitle={docTitle}>
+        <Title title="How to lodge" sub="myTax, step by step" />
         <Steps items={[
           "Sign in to myGov, open the ATO service and start your tax return in myTax.",
           "When you personalise the return, choose the business / sole trader income option. This adds the Business and professional items schedule.",
-          "At P1 Personal services income: if the ATO’s personal services income (PSI) rules don’t apply to you, your ride-sourcing earnings go at P8 label J as below. Check the PSI rules if unsure.",
-          "Fill in P8 with the amounts above, then transfer label Z to question 15, label C.",
+          "At P1 Personal services income: if the ATO’s personal services income (PSI) rules don’t apply to you, your ride-sourcing earnings go at P8 label J. Check the PSI rules if unsure.",
+          "Fill in P8 with the amounts on the previous page, in the Non-primary production column.",
+          `Transfer label Z (${p.Z < 0 ? `${dollars(-p.Z)} loss` : dollars(p.Z)}) to supplementary tax return question 15, label C.${p.Z < 0 ? " Print L in the loss box, and complete P3 and P9 for business losses." : ""}`,
           "At question 15, Part D, enter your net small business income to work out the small business income tax offset (up to $1,000).",
-          "Credit for GST you paid comes from your BAS, not your tax return. Don’t include GST in any amount on this page.",
+          "GST isn’t part of your tax return: it’s settled through your BAS. Don’t include GST in any amount in this summary’s P8 figures.",
         ]} />
+        <Text style={{ ...s.blockTitle, marginTop: 22 }}>Before you lodge</Text>
+        {[
+          ["Your ABN is in Settings (it prints at the top of every page)", !!r.abn],
+          ["Income for every week or month of the year is entered", r.income.length > 0],
+          ["Every expense has a receipt attached", withReceipt === r.expenses.length],
+          ["Logbook covers at least 12 continuous weeks", lbDays >= 84],
+          ["Odometer readings for the start and end of the year are entered", y.odo_year_start != null && y.odo_year_end != null],
+          ["Totals match your Uber and DiDi annual tax summaries", false],
+        ].map(([k, ok]) => (
+          <View key={String(k)} style={{ flexDirection: "row", marginBottom: 5 }}>
+            <Text style={{ width: 52, fontFamily: "Helvetica-Bold", fontSize: 8.5, color: ok ? C.pos : C.neg }}>{ok ? "OK" : "CHECK"}</Text>
+            <Text style={{ fontSize: 9, color: C.ink2 }}>{String(k)}</Text>
+          </View>
+        ))}
       </Sheet>
 
       {/* 3. Earnings */}
@@ -140,7 +160,7 @@ export function TaxReport({ r }: { r: ReportData }) {
           ["Had the car from", y.car_start_date ? date(y.car_start_date) : "1 July (start of year)"],
           ["Odometer at start", y.odo_year_start != null ? `${y.odo_year_start.toLocaleString("en-AU")} km` : "Not entered"],
           ["Odometer at end", y.odo_year_end != null ? `${y.odo_year_end.toLocaleString("en-AU")} km` : "Not entered yet"],
-          ["Logbook period", lbStart && lbEnd ? `${date(lbStart)} – ${date(lbEnd)} (${Math.floor(lbDays / 7)} weeks)` : "No trips logged"],
+          ["Logbook period", lbStart && lbEnd ? `${date(lbStart)} – ${date(lbEnd)} (${Math.floor(lbDays / 7)} of 12 weeks)` : "No trips logged"],
         ]} />
         <Rows title="Kilometres in the logbook period" rows={[
           ["Rideshare & delivery", `${lb.rideshare.toLocaleString("en-AU")} km`], ["Other ABN work", `${lb.other_abn.toLocaleString("en-AU")} km`],

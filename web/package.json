@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --test lib/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "preview-reports": "esbuild scripts/preview-reports.tsx --bundle --platform=node --format=esm --packages=external --jsx=automatic --log-level=warning --outfile=.report-preview/run.mjs && node .report-preview/run.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",
@@ -23,6 +24,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.25.12",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
     "tailwindcss": "4.3.3",
