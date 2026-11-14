@@ -1,13 +1,16 @@
 import { requireUser } from "@/lib/supabase/server";
-import { getFy, loadYear, loadYearData } from "@/lib/data";
-import { BAS_DUE, QUARTERS, carPurchaseGst, fyRange, summarise } from "@/lib/tax";
+import { getFy, loadYear, loadYearData, pickQuarter } from "@/lib/data";
+import { BAS_DUE, carPurchaseGst, fyRange, summarise } from "@/lib/tax";
 import { aud, auDate, pct } from "@/lib/fmt";
 import { addCarTx, deleteRow } from "@/app/actions";
+import { PageHead } from "@/components/QuarterTabs";
+import { Icon } from "@/components/Icon";
 
 const LABELS = [
-  ["G1", "Total sales (incl GST)"], ["1A", "GST on sales"], ["G10", "Capital purchases (incl GST)"],
-  ["G11", "Non-capital purchases (incl GST)"], ["1B", "GST on purchases"],
+  ["G1", "Total sales"], ["1A", "GST on sales"], ["G10", "Capital purchases"],
+  ["G11", "Non-capital purchases"], ["1B", "GST on purchases"],
 ] as const;
+const QN = ["Jul – Sep", "Oct – Dec", "Jan – Mar", "Apr – Jun"];
 const SELLERS: Record<string, string> = {
   dealer: "Dealer", private_gst: "Private seller – GST registered", private_no_gst: "Private seller – not GST registered",
 };
@@ -21,59 +24,83 @@ export default async function Bas() {
     supabase.from("car_transactions").select("*").gte("date", start).lte("date", end).order("date"),
   ]);
   const s = summarise(year, data);
+  const cq = pickQuarter(undefined, fy);
   const carPct = Math.round((s.annualCarPct || 0) * 1000) / 10;
 
   return (
-    <main className="space-y-6">
-      <h1 className="h1">BAS summary · FY {fy}</h1>
-      <p className="text-sm text-slate-600">Copy these figures into your Business Activity Statement (myGov → ATO → Activity statements).</p>
-      <section className="card overflow-x-auto">
-        <table className="tbl min-w-[720px]">
-          <thead><tr><th>Label</th><th>Description</th>{QUARTERS.map((q) => <th key={q} className="num">{q}</th>)}<th className="num">Year</th></tr></thead>
-          <tbody>
-            {LABELS.map(([k, d]) => (
-              <tr key={k}><td className="font-medium">{k}</td><td>{d}</td>
-                {s.bas.map((b, i) => <td key={i} className="num">{aud(b[k])}</td>)}<td className="num font-medium">{aud(s.basYear[k])}</td></tr>
-            ))}
-            <tr className="font-semibold"><td /><td>Net GST payable / (refund)</td>
-              {s.bas.map((b, i) => <td key={i} className={`num ${b.net < 0 ? "text-green-700" : b.net > 0 ? "text-red-700" : ""}`}>{aud(b.net)}</td>)}
-              <td className="num">{aud(s.basYear.net)}</td></tr>
-            <tr><td /><td className="muted">Due (self-lodged)</td>{BAS_DUE.map((d) => <td key={d} className="num muted">{d}</td>)}<td /></tr>
-          </tbody>
-        </table>
-      </section>
+    <main>
+      <PageHead eyebrow={`FY ${fy}`} title="BAS summary">
+        <div className="text-sm sm:text-right">
+          <p className="text-mute">Year net GST {s.basYear.net < 0 ? "refund" : "payable"}</p>
+          <p className={`text-2xl font-bold tabular-nums ${s.basYear.net < 0 ? "text-pos" : ""}`}>{aud(Math.abs(s.basYear.net))}</p>
+        </div>
+      </PageHead>
+      <p className="rise rise-1 mb-6 text-sm text-ink-2">Copy each label into your Business Activity Statement (myGov → ATO → Activity statements). Amounts include GST where marked.</p>
 
-      <section className="card space-y-3">
-        <h2 className="h2">Car bought or sold this year</h2>
-        <p className="muted">
-          GST credit on a car is capped at the car limit ({aud(year.car_limit)} → max {aud(year.car_limit / 11)} GST) and
-          multiplied by business use. Nothing is claimable from a seller who isn’t GST registered. Only declare a sale if the car was used in the business.
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {s.bas.map((b, i) => (
+          <section key={i} className={`rise rise-${i + 1} flex flex-col rounded-2xl p-5 ${i === cq ? "ring-2 ring-ink" : "ring-1 ring-line"}`}>
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-lg font-bold">Q{i + 1} <span className="font-medium text-mute">{QN[i]}</span></h2>
+              {i === cq && <span className="pill bg-black text-white">Current</span>}
+            </div>
+            <p className="muted mb-4">Due {BAS_DUE[i]}</p>
+            <dl className="flex-1 space-y-2">
+              {LABELS.map(([k, d]) => (
+                <div key={k} className="flex items-center gap-3 rounded-xl bg-wash px-3 py-2.5">
+                  <dt className="grid h-8 w-11 shrink-0 place-items-center rounded-md bg-black text-xs font-bold text-white">{k}</dt>
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-mute">{d}</span>
+                  <dd className="font-bold tabular-nums">{aud(b[k])}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-4 flex items-baseline justify-between border-t border-line pt-4">
+              <span className="text-sm font-medium">{b.net < 0 ? "Refund" : b.net > 0 ? "To pay" : "Nil"}</span>
+              <span className={`text-2xl font-bold tabular-nums ${b.net < 0 ? "text-pos" : ""}`}>{aud(Math.abs(b.net))}</span>
+            </div>
+          </section>
+        ))}
+      </div>
+
+      <section className="rise rise-4 mt-10">
+        <h2 className="mb-1 text-xl font-bold tracking-[-0.01em]">Car bought or sold</h2>
+        <p className="muted mb-4 max-w-3xl">
+          GST credit on a car is capped at the car limit ({aud(year.car_limit)}, so at most {aud(year.car_limit / 11)} GST) and
+          multiplied by business use. A seller who isn’t GST-registered gives no credit. Only declare a sale if you used the car in the business.
         </p>
-        <table className="tbl">
-          <thead><tr><th>Date</th><th>Type</th><th>Seller</th><th className="num">Amount</th><th className="num">GST on invoice</th><th className="num">Business %</th><th className="num">GST claimed / payable</th><th /></tr></thead>
-          <tbody>
-            {(tx ?? []).map((t) => (
-              <tr key={t.id}>
-                <td>{auDate(t.date)}</td><td>{t.kind === "purchase" ? "Purchase" : "Sale"}</td><td>{t.seller ? SELLERS[t.seller] : ""}</td>
-                <td className="num">{aud(t.amount)}</td><td className="num">{t.kind === "purchase" ? aud(t.gst) : ""}</td>
-                <td className="num">{pct(t.business_pct)}</td>
-                <td className="num">{t.kind === "purchase" ? aud(carPurchaseGst(t.seller, t.gst, year.car_limit, t.business_pct))
-                  : aud(year.gst_registered ? Math.round(t.amount * t.business_pct / 11 * 100) / 100 : 0)}</td>
-                <td className="text-right"><form action={deleteRow}><input type="hidden" name="table" value="car_transactions" /><input type="hidden" name="id" value={t.id} /><button className="btn-danger">Delete</button></form></td>
-              </tr>
-            ))}
-            {!tx?.length && <tr><td colSpan={8} className="muted">None this year.</td></tr>}
-          </tbody>
-        </table>
-        <form action={addCarTx} className="grid items-end gap-2 sm:grid-cols-7">
-          <label className="field">Type<select name="kind"><option value="purchase">Purchase</option><option value="sale">Sale / trade-in</option></select></label>
-          <label className="field">Date<input name="date" type="date" required min={start} max={end} /></label>
-          <label className="field">Seller (purchase)<select name="seller">{Object.entries(SELLERS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-          <label className="field">Price incl GST & on-road<input name="amount" type="number" step="0.01" required /></label>
-          <label className="field">GST on invoice<input name="gst" type="number" step="0.01" /></label>
-          <label className="field">Business %<input name="business_pct" type="number" step="0.1" min="0" max="100" required defaultValue={carPct} /></label>
-          <button className="btn">Add</button>
-        </form>
+        <div className="card space-y-5">
+          {(tx ?? []).length > 0 && (
+            <ul className="divide-y divide-wash-2">
+              {(tx ?? []).map((t) => {
+                const g = t.kind === "purchase" ? carPurchaseGst(t.seller, t.gst, year.car_limit, t.business_pct)
+                  : year.gst_registered ? Math.round(t.amount * t.business_pct / 11 * 100) / 100 : 0;
+                return (
+                  <li key={t.id} className="flex items-center gap-4 py-3">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-black text-white"><Icon name="car" size={20} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium">{t.kind === "purchase" ? "Purchase" : "Sale / trade-in"} · {aud(t.amount)}</span>
+                      <span className="block truncate text-[13px] text-mute">{auDate(t.date)}{t.seller ? ` · ${SELLERS[t.seller]}` : ""} · {pct(t.business_pct)} business</span>
+                    </span>
+                    <span className="text-right">
+                      <span className="block font-bold tabular-nums">{aud(g)}</span>
+                      <span className="block text-[11px] text-mute">{t.kind === "purchase" ? "GST credit (1B)" : "GST on sale (1A)"}</span>
+                    </span>
+                    <form action={deleteRow}><input type="hidden" name="table" value="car_transactions" /><input type="hidden" name="id" value={t.id} /><button className="btn-danger">Delete</button></form>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <form action={addCarTx} className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-7">
+            <label className="field">Type<select name="kind"><option value="purchase">Purchase</option><option value="sale">Sale / trade-in</option></select></label>
+            <label className="field">Date<input name="date" type="date" required min={start} max={end} /></label>
+            <label className="field lg:col-span-2">Seller (purchases)<select name="seller">{Object.entries(SELLERS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+            <label className="field">Price incl GST<input name="amount" type="number" step="0.01" required placeholder="0.00" /></label>
+            <label className="field">GST on invoice<input name="gst" type="number" step="0.01" placeholder="0.00" /></label>
+            <label className="field">Business %<input name="business_pct" type="number" step="0.1" min="0" max="100" required defaultValue={carPct} /></label>
+            <button className="btn lg:col-start-7"><Icon name="plus" size={18} />Add</button>
+          </form>
+        </div>
       </section>
     </main>
   );

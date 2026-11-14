@@ -1,30 +1,80 @@
 @import "tailwindcss";
 
+/* Design tokens: high-contrast monochrome in the style of Base Web (Uber's open-source design system). */
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --color-ink: #000000;
+  --color-ink-2: #333333;
+  --color-mute: #545454;
+  --color-mute-2: #757575;
+  --color-line: #e2e2e2;
+  --color-wash: #f3f3f3;
+  --color-wash-2: #eeeeee;
+  --color-pos: #05944f;
+  --color-neg: #e11900;
+  --color-warn: #ffc043;
+  --color-accent: #276ef1;
 }
 
 body {
-  background: #f6f7f9;
-  color: #0f172a;
+  background: #ffffff;
+  color: #000;
+  font-feature-settings: "ss01", "tnum" 0;
+  -webkit-font-smoothing: antialiased;
 }
 
+::selection { background: #000; color: #fff; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.rise-1 { animation-delay: 60ms; } .rise-2 { animation-delay: 120ms; } .rise-3 { animation-delay: 180ms; } .rise-4 { animation-delay: 240ms; }
+@media (prefers-reduced-motion: reduce) { .rise { animation: none; } }
+
 @layer components {
-  .card { @apply rounded-lg border border-slate-200 bg-white p-4 shadow-sm; }
-  .field { @apply flex flex-col gap-1 text-sm font-medium text-slate-700; }
-  .field input, .field select, .field textarea, .inp {
-    @apply rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm font-normal text-slate-900 focus:border-blue-600 focus:outline-none;
-  }
-  .btn { @apply rounded-md bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-50; }
-  .btn-ghost { @apply rounded-md px-2 py-1 text-sm text-slate-600 hover:bg-slate-100; }
-  .btn-danger { @apply rounded px-2 py-0.5 text-xs text-red-700 hover:bg-red-50; }
-  .tbl { @apply w-full text-sm; }
-  .tbl th { @apply border-b border-slate-200 px-2 py-1.5 text-left font-medium text-slate-500; }
-  .tbl td { @apply border-b border-slate-100 px-2 py-1.5; }
+  /* Type */
+  .display { @apply text-[2.5rem] leading-[1.05] font-bold tracking-[-0.03em] sm:text-[3.25rem]; }
+  .h1 { @apply text-[1.75rem] leading-tight font-bold tracking-[-0.02em] sm:text-[2.25rem]; }
+  .h2 { @apply text-lg font-bold tracking-[-0.01em]; }
+  .eyebrow { @apply text-xs font-medium tracking-wide text-mute uppercase; }
+  .muted { @apply text-[13px] text-mute; }
   .num { @apply text-right tabular-nums; }
-  .h1 { @apply text-xl font-semibold; }
-  .h2 { @apply text-base font-semibold text-slate-800; }
-  .muted { @apply text-xs text-slate-500; }
-  .tab { @apply rounded-md px-3 py-1 text-sm text-slate-600 hover:bg-slate-200; }
-  .tab-on { @apply bg-blue-700 text-white hover:bg-blue-700; }
+
+  /* Surfaces */
+  .card { @apply rounded-2xl bg-white p-5 ring-1 ring-line; }
+  .card-wash { @apply rounded-2xl bg-wash p-5; }
+  .card-ink { @apply rounded-2xl bg-ink p-6 text-white; }
+
+  /* Inputs: filled grey, black focus border, like Base Web */
+  .field { @apply flex flex-col gap-1.5 text-[13px] font-medium text-ink-2; }
+  .field input:not([type="checkbox"]):not([type="file"]), .field select, .field textarea, .inp {
+    @apply h-11 w-full rounded-lg border-2 border-transparent bg-wash px-3 text-[15px] font-normal text-ink transition-colors outline-none placeholder:text-mute-2 hover:bg-wash-2 focus:border-ink focus:bg-white;
+  }
+  .field input[type="file"] { @apply text-[13px] font-normal file:mr-3 file:h-9 file:cursor-pointer file:rounded-full file:border-0 file:bg-wash-2 file:px-4 file:text-[13px] file:font-medium file:text-ink hover:file:bg-line; }
+  input[type="checkbox"] { @apply h-5 w-5 accent-black; }
+
+  /* Buttons: pills */
+  .btn { @apply inline-flex h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-[15px] font-medium text-white transition hover:bg-ink-2 active:scale-[0.98] disabled:bg-line disabled:text-mute-2; }
+  .btn-secondary { @apply inline-flex h-11 items-center justify-center gap-2 rounded-full bg-wash-2 px-5 text-[15px] font-medium text-ink transition hover:bg-line active:scale-[0.98]; }
+  .btn-sm { @apply h-9 px-4 text-sm; }
+  .btn-ghost { @apply inline-flex h-9 items-center rounded-full px-3 text-sm font-medium text-ink-2 transition hover:bg-wash; }
+  .btn-danger { @apply inline-flex h-8 items-center rounded-full px-3 text-[13px] font-medium text-mute transition hover:bg-[#fff0ee] hover:text-neg; }
+  .link { @apply font-medium text-ink underline decoration-line decoration-2 underline-offset-4 hover:decoration-ink; }
+
+  /* Chips / segmented control */
+  .seg { @apply inline-flex gap-1 rounded-full bg-wash p-1; }
+  .tab { @apply inline-flex h-9 items-center rounded-full px-4 text-sm font-medium whitespace-nowrap text-ink-2 transition hover:bg-wash-2; }
+  .tab-on { @apply bg-ink text-white hover:bg-ink; }
+  .pill { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium; }
+
+  /* Tables */
+  .tbl { @apply w-full text-[14px]; }
+  .tbl th { @apply border-b border-line px-3 py-3 text-left text-xs font-medium tracking-wide text-mute uppercase; }
+  .tbl td { @apply border-b border-wash-2 px-3 py-3.5 align-middle; }
+  .tbl tbody tr { @apply transition-colors hover:bg-wash/60; }
+  .tbl tfoot td { @apply border-0 pt-4 font-bold; }
+
+  /* Key-value rows */
+  .kv { @apply flex items-baseline justify-between gap-4 border-b border-wash-2 py-2.5 text-[15px] last:border-0; }
+  .kv dt { @apply text-mute; }
+  .kv dd { @apply font-medium tabular-nums; }
 }

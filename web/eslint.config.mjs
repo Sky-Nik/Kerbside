@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "web/**", // stray build output, safe to delete
   ]),
 ]);
 
