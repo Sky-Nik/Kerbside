@@ -156,6 +156,45 @@ export function Table({ cols, rows }: { cols: { h: string; w: number; right?: bo
   );
 }
 
+/** Cover art: a rideshare car seen from above, pulled up at a crossroads with yellow kerb lines. */
+export function CarIllustration() {
+  return (
+    <Svg width={170} height={170} viewBox="0 0 170 170">
+      <Circle cx="85" cy="85" r="85" fill={C.kerbSoft} />
+      {/* crossroads */}
+      <Rect x="61" y="8" width="48" height="154" fill="#FFFFFF" />
+      <Rect x="8" y="61" width="154" height="48" fill="#FFFFFF" />
+      {/* kerb lines along the road edges */}
+      <Rect x="57" y="16" width="3" height="40" rx="1.5" fill={C.kerb} />
+      <Rect x="110" y="16" width="3" height="40" rx="1.5" fill={C.kerb} />
+      <Rect x="57" y="114" width="3" height="40" rx="1.5" fill={C.kerb} />
+      <Rect x="110" y="114" width="3" height="40" rx="1.5" fill={C.kerb} />
+      <Rect x="16" y="57" width="40" height="3" rx="1.5" fill={C.kerb} />
+      <Rect x="114" y="57" width="40" height="3" rx="1.5" fill={C.kerb} />
+      <Rect x="16" y="110" width="40" height="3" rx="1.5" fill={C.kerb} />
+      <Rect x="114" y="110" width="40" height="3" rx="1.5" fill={C.kerb} />
+      {/* car shadow + body */}
+      <Rect x="66" y="45" width="44" height="86" rx="15" fill="#E8DCC0" />
+      <Rect x="63" y="41" width="44" height="86" rx="15" fill={C.ink} />
+      {/* mirrors */}
+      <Rect x="58" y="66" width="6" height="8" rx="2" fill={C.ink} />
+      <Rect x="106" y="66" width="6" height="8" rx="2" fill={C.ink} />
+      {/* headlights + tail lights */}
+      <Rect x="67" y="43" width="10" height="4" rx="2" fill={C.kerb} />
+      <Rect x="93" y="43" width="10" height="4" rx="2" fill={C.kerb} />
+      <Rect x="68" y="122" width="9" height="3" rx="1.5" fill="#E2554A" />
+      <Rect x="93" y="122" width="9" height="3" rx="1.5" fill="#E2554A" />
+      {/* windscreen, roof, rear window */}
+      <Path d="M68 61 L102 61 L98 75 L72 75 Z" fill="#FFFFFF" />
+      <Rect x="72" y="78" width="26" height="30" rx="6" fill="#2B2B2B" />
+      <Path d="M71 111 L99 111 L102 119 L68 119 Z" fill="#FFFFFF" />
+      {/* rideshare badge on the roof */}
+      <Circle cx="85" cy="93" r="9" fill={C.kerb} />
+      <Path d="M80.5 93.5 L84 97 L90 89.5" stroke={C.ink} strokeWidth={2.4} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 /** Cover page body: illustration + title, headline split, stats band. */
 export function Cover({ fyLabel, title, greeting, intro, left, headline, stats }: {
   fyLabel: string; title: string; greeting: string; intro: string;
@@ -165,15 +204,7 @@ export function Cover({ fyLabel, title, greeting, intro, left, headline, stats }
   return (
     <View>
       <View style={{ flexDirection: "row", alignItems: "center", marginTop: 20 }}>
-        <Svg width={170} height={170} viewBox="0 0 170 170">
-          <Circle cx="85" cy="85" r="85" fill={C.kerbSoft} />
-          <Rect x="0" y="118" width="170" height="10" fill="#FFFFFF" />
-          <Rect x="22" y="128" width="126" height="5" fill={C.kerb} />
-          <Rect x="52" y="34" width="66" height="66" rx="15" fill={C.ink} />
-          <Path d="M74 46v34" stroke="#FFFFFF" strokeWidth={10} />
-          <Path d="M104 46 82.5 63.5 104 80" stroke="#FFFFFF" strokeWidth={10} fill="none" strokeLinejoin="miter" />
-          <Rect x="70" y="86" width="38" height="5" rx="2.5" fill={C.kerb} />
-        </Svg>
+        <CarIllustration />
         <View style={{ flex: 1, marginLeft: 28 }}>
           <Text style={{ fontSize: 12, marginBottom: 6 }}>{fyLabel}</Text>
           <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 30, letterSpacing: -0.8, marginBottom: 12 }}>{title}</Text>
