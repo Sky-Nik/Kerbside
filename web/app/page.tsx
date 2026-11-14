@@ -4,6 +4,7 @@ import { getFy, loadYear, loadYearData, pickQuarter } from "@/lib/data";
 import { BAS_DUE, fyRange, summarise } from "@/lib/tax";
 import { aud, pct } from "@/lib/fmt";
 import { Icon } from "@/components/Icon";
+import { CategoryBars, IncomeExpenseChart } from "@/components/Charts";
 
 const QN = ["Jul – Sep", "Oct – Dec", "Jan – Mar", "Apr – Jun"];
 
@@ -18,6 +19,22 @@ export default async function Dashboard() {
   const noPct = year.pct.car.every((v) => !v);
   const cq = pickQuarter(undefined, fy);
   const cur = s.bas[cq];
+
+  // Expenses by category (deductible, ex GST) – biggest first
+  const t = s.tax;
+  const sumQ = (a: number[]) => a.reduce((x, v) => x + v, 0);
+  const categories = [
+    ...(year.car_method === "cpk"
+      ? [{ label: "Car (cents per km)", value: t.cpkTotal }]
+      : [...t.carLines.map((l) => ({ label: `Car – ${l.label}`, value: sumQ(l.q) })),
+        { label: "Car – Depreciation", value: t.depreciation }, { label: "Car – Loan interest", value: t.interest }]),
+    ...t.feeLines.map((l) => ({ label: `Platform – ${l.label}`, value: sumQ(l.q) })),
+    ...t.otherLines.map((l) => ({ label: l.label, value: sumQ(l.q) })),
+  ].filter((c) => c.value > 0.004).sort((a, b) => b.value - a.value);
+  const top = categories[0];
+  const ratio = t.income > 0 ? t.totalExpenses / t.income : 0;
+  const qIncome = s.q.netIncome;
+  const qExpenses = [0, 1, 2, 3].map((i) => s.q.fees[i] + s.q.expenses[i]);
 
   return (
     <main className="space-y-6 pt-8">
@@ -64,6 +81,54 @@ export default async function Dashboard() {
             <div><dt className="text-xs text-mute">1B</dt><dd className="font-medium tabular-nums">{aud(cur["1B"])}</dd></div>
           </dl>
         </Link>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-5">
+        <section className="card rise rise-2 lg:col-span-3">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="h2">Income vs expenses</h2>
+              <p className="muted">By quarter, excluding GST</p>
+            </div>
+            <div className="text-right">
+              <p className="text-3xl font-bold tracking-[-0.02em] tabular-nums">{t.income > 0 ? `${Math.round(ratio * 100)}%` : "–"}</p>
+              <p className="muted">of income spent on expenses</p>
+            </div>
+          </div>
+          <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-black" aria-hidden>
+            <div className="h-full bg-warn" style={{ width: `${Math.min(100, ratio * 100)}%` }} />
+          </div>
+          <div className="mt-2 flex justify-between text-xs">
+            <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-warn" />Expenses {aud(t.totalExpenses)}</span>
+            <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-black" />Income {aud(t.income)}</span>
+          </div>
+          <div className="mt-5"><IncomeExpenseChart income={qIncome} expenses={qExpenses} /></div>
+          {(t.depreciation > 0 || t.interest > 0) && (
+            <p className="muted mt-1">Car depreciation and loan interest are yearly, so they’re in the totals but not the quarterly bars.</p>
+          )}
+        </section>
+
+        <section className="card rise rise-3 lg:col-span-2">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="h2">Where your money goes</h2>
+              <p className="muted">Deductible expenses this year</p>
+            </div>
+            <Link href="/expenses" className="btn-ghost shrink-0">Expenses<Icon name="chevron" size={16} /></Link>
+          </div>
+          <div className="my-4 rounded-xl bg-wash p-4">
+            <p className="text-xs text-mute">Total expenses</p>
+            <p className="text-2xl font-bold tabular-nums">{aud(t.totalExpenses)}</p>
+            {top && (
+              <p className="mt-1 text-sm">
+                Biggest: <b>{top.label}</b> at {Math.round((top.value / (t.totalExpenses || 1)) * 100)}%
+              </p>
+            )}
+          </div>
+          {categories.length ? <CategoryBars items={categories.slice(0, 6)} total={t.totalExpenses} />
+            : <p className="muted">No expenses yet. Add fuel, rego and other costs on the Expenses page.</p>}
+          {categories.length > 6 && <p className="muted mt-3">+ {categories.length - 6} more categories</p>}
+        </section>
       </div>
 
       <section className="card rise rise-3 flex flex-col gap-5 lg:flex-row lg:items-center">
