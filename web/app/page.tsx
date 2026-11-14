@@ -2,10 +2,11 @@ import Link from "next/link";
 import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear, loadYearData, pickQuarter, requirePlatforms } from "@/lib/data";
 import { BAS_DUE, fyRange, summarise } from "@/lib/tax";
-import { aud, pct } from "@/lib/fmt";
+import { aud } from "@/lib/fmt";
 import { Icon } from "@/components/Icon";
 import { CategoryBars, IncomeExpenseChart } from "@/components/Charts";
 import { EarningsPanel } from "@/components/EarningsPanel";
+import { KmDriven } from "@/components/KmDriven";
 import { loadHistory } from "@/lib/history";
 
 const QN = ["Jul – Sep", "Oct – Dec", "Jan – Mar", "Apr – Jun"];
@@ -50,6 +51,13 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
     supabase.from("expenses").select("date,amount"),
   ]);
   // Past years: everything the return counted as earned income (some years platforms were lodged as wages).
+  // Kilometres for the km card: odometer readings if both are entered, else what's in the logbook
+  const odoKm = year.odo_year_start != null && year.odo_year_end != null && year.odo_year_end > year.odo_year_start
+    ? year.odo_year_end - year.odo_year_start : 0;
+  const kmDriven = odoKm || s.logbook.total;
+  const kmSource = odoKm ? "From your odometer readings" : "Logged in your logbook";
+  const { data: kmRows } = await supabase.from("income_entries").select("km").not("km", "is", null).gte("start_date", start).lte("start_date", end);
+  const platformKm = Math.round((kmRows ?? []).reduce((t, r) => t + Number(r.km), 0));
   const pastYears = history.filter((h) => h.source !== "Kerbside (this year)").map((h) => ({ fy: h.fy, business: h.business + h.wages, source: h.source }));
 
   return (
@@ -201,27 +209,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           </ul>
         </section>
 
-        <Link href="/logbook" className="card rise rise-4 group flex flex-col lg:col-span-2">
-          <div className="flex items-center justify-between">
-            <h2 className="h2">Logbook</h2>
-            <Icon name="chevron" className="text-mute group-hover:text-ink" />
-          </div>
-          {s.logbook.total ? (
-            <>
-              <p className="mt-4 text-5xl font-bold tracking-[-0.03em] tabular-nums">{pct(s.logbook.businessPct)}</p>
-              <p className="text-sm text-mute">business use over {s.logbook.total.toLocaleString()} km</p>
-              <div className="mt-5 h-2 overflow-hidden rounded-full bg-wash-2">
-                <div className="h-full rounded-full bg-black" style={{ width: `${Math.round(s.logbook.businessPct * 100)}%` }} />
-              </div>
-              <div className="mt-2 flex justify-between text-xs text-mute"><span>Business</span><span>Private</span></div>
-            </>
-          ) : (
-            <div className="mt-4 flex flex-1 flex-col justify-between">
-              <p className="text-sm text-mute">Log a continuous 12-week period to work out your car business-use %. It lasts 5 years.</p>
-              <span className="btn-secondary btn-sm mt-4 self-start">Start logbook</span>
-            </div>
-          )}
-        </Link>
+        <KmDriven fy={fy} km={kmDriven} kmSource={kmSource} businessPct={s.logbook.total ? s.logbook.businessPct : null} platformKm={platformKm} />
       </div>
     </main>
   );

@@ -21,6 +21,8 @@ export function ImportDocument({ intro }: { intro?: string }) {
   const [entries, setEntries] = useState<PlatformSummary["entries"]>([]);
   const [addIncome, setAddIncome] = useState(true);
   const [other, setOther] = useState({ title: "", fy: "" });
+  const [queue, setQueue] = useState<File[]>([]); // files still to process after the current one
+  const [pos, setPos] = useState({ n: 0, of: 0 });
 
   async function upload(file: File) {
     setBusy(true); setMsg(null);
@@ -39,6 +41,28 @@ export function ImportDocument({ intro }: { intro?: string }) {
     setOther({ title: file.name.replace(/\.[^.]+$/, ""), fy: "" });
   }
 
+  /** Start on a list of files: review them one at a time. */
+  function start(files: File[]) {
+    if (!files.length) return;
+    setPos({ n: 1, of: files.length });
+    setQueue(files.slice(1));
+    upload(files[0]);
+  }
+
+  /** After saving or cancelling one file, move on to the next. */
+  function next(note?: string) {
+    setUp(null);
+    if (queue.length) {
+      const [f, ...rest] = queue;
+      setQueue(rest);
+      setPos((p) => ({ n: p.n + 1, of: p.of }));
+      upload(f);
+    } else {
+      setPos({ n: 0, of: 0 });
+      if (note) setMsg(note);
+    }
+  }
+
   async function save() {
     if (!up) return;
     setBusy(true); setMsg(null);
@@ -54,15 +78,15 @@ export function ImportDocument({ intro }: { intro?: string }) {
         const r = await confirmImport({
           path: up.path, fileName: up.fileName, kind: "platform_summary", fy, title: `Uber tax summary – ${p.period.label}`,
           parsed: { ...p, entries, period: { ...p.period, start: period.start, end: period.end } },
-          entries: canAdd ? entries.map((e) => ({ ...e, start_date: period.start, end_date: period.end })) : [],
+          entries: canAdd ? entries.map((e) => ({ ...e, start_date: period.start, end_date: period.end, km: e.km ?? null })) : [],
         });
         setMsg(r.added ? `Saved. Added ${r.added} income ${r.added === 1 ? "entry" : "entries"}.` : "Saved to your documents.");
+        if (pos.of <= 1) { router.refresh(); setUp(null); setBusy(false); return; }
       } else {
         await confirmImport({ path: up.path, fileName: up.fileName, kind: "other", fy: other.fy || null, title: other.title || up.fileName, parsed: {} });
       }
-      if (p?.kind !== "platform_summary") setMsg("Saved to your documents.");
-      setUp(null);
       router.refresh();
+      next(pos.of > 1 ? `Saved ${pos.of} documents.` : p?.kind === "platform_summary" ? undefined : "Saved to your documents.");
     } catch (e) {
       setMsg((e as Error).message);
     }
@@ -71,7 +95,8 @@ export function ImportDocument({ intro }: { intro?: string }) {
 
   async function cancel() {
     if (up) await cancelImport(up.path);
-    setUp(null); setMsg(null);
+    setMsg(null);
+    next();
   }
 
   if (!up) {
@@ -79,10 +104,11 @@ export function ImportDocument({ intro }: { intro?: string }) {
       <div>
         <label className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line bg-wash p-6 text-center transition hover:border-mute-2 ${busy ? "opacity-60" : ""}`}>
           <span className="grid h-12 w-12 place-items-center rounded-full bg-black text-white"><Icon name="upload" /></span>
-          <span className="font-medium">{busy ? "Reading your document…" : "Upload a PDF"}</span>
+          <span className="font-medium">{busy ? "Reading your document…" : "Upload PDFs"}</span>
           <span className="max-w-md text-xs text-mute">{intro ?? "Lodged tax return (myGov print), Uber tax summary, or any other document. You’ll check the figures before anything is added."}</span>
-          <input type="file" accept="application/pdf,image/*" className="sr-only" disabled={busy}
-            onChange={(e) => { const f = e.currentTarget.files?.[0]; if (f) upload(f); e.currentTarget.value = ""; }} />
+          <span className="text-xs font-medium text-ink-2">You can pick several files at once</span>
+          <input type="file" accept="application/pdf,image/*" multiple className="sr-only" disabled={busy}
+            onChange={(e) => { start([...(e.currentTarget.files ?? [])]); e.currentTarget.value = ""; }} />
         </label>
         {msg && <p className={`mt-3 text-sm ${msg.startsWith("Saved") ? "text-pos" : "text-neg"}`}>{msg}</p>}
       </div>
@@ -96,7 +122,7 @@ export function ImportDocument({ intro }: { intro?: string }) {
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-warn"><Icon name="check" /></span>
         <div>
           <p className="font-bold">{p?.kind === "tax_return" ? `Lodged tax return · ${p.fy}` : p?.kind === "platform_summary" ? `Uber tax summary · ${p.period.label}` : "Document uploaded"}</p>
-          <p className="text-[13px] text-mute">{up.fileName}. Check the figures below, then save.</p>
+          <p className="text-[13px] text-mute">{pos.of > 1 && <b className="text-ink">File {pos.n} of {pos.of} · </b>}{up.fileName}. Check the figures below, then save.</p>
         </div>
       </div>
 
@@ -135,6 +161,19 @@ export function ImportDocument({ intro }: { intro?: string }) {
             </div>
           ))}
           <p className="text-sm">Total payments on the summary: <b>{aud(p.totalPayments)}</b></p>
+          {Math.abs(p.mismatch) >= 0.01 && (
+            <p className="rounded-xl bg-[#fff0ee] p-3 text-sm text-neg">
+              The amounts above add up to {aud(p.totalPayments - p.mismatch)}, {aud(Math.abs(p.mismatch))} {p.mismatch > 0 ? "less" : "more"} than the summary’s Total Payments.
+              Part of the summary wasn’t recognised: adjust the amounts so they match before saving.
+            </p>
+          )}
+          {entries.some((e) => e.km != null) && (
+            <label className="field max-w-xs">On-trip kilometres (saved to your logbook)
+              <input type="number" step="0.1" value={entries.find((e) => e.km != null)?.km ?? ""}
+                onChange={(ev) => { const v = ev.currentTarget.value === "" ? undefined : Number(ev.currentTarget.value);
+                  setEntries(entries.map((x) => (x.km != null ? { ...x, km: v } : x))); }} />
+            </label>
+          )}
           {p.period.annual ? (
             <p className="rounded-xl bg-[#fff8e6] p-3 text-sm">This is an annual summary. It’s saved to your documents and counts towards your income history, but isn’t split into weekly entries. Upload monthly summaries to fill gaps in the current year.</p>
           ) : (

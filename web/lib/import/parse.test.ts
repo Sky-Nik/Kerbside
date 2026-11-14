@@ -47,7 +47,8 @@ test("lodged return: tax figures only, no personal identifiers", () => {
 
 const SUMMARY = (period: string) => `Uber JANE CITIZEN Australian Business Number (ABN): 11111111111
 ${period} Tax summary
-Transportation Income A$1,100.00 Delivery Income A$500.00 Other Payments A$60.00 Total Payments A$1,660.00
+Transportation Income A$1,100.00 Delivery Income A$500.00 Pack & Deliver Income A$80.00 Other Payments A$60.00 Total Payments A$1,740.00
+321 km On Trip Mileage 40 Trips
 How your earnings were calculated
 Transportation Income
 Gross transportation fare* A$1,000.00
@@ -59,6 +60,10 @@ Delivery Fee A$400.00
 Delivery Incentives A$95.00
 Tolls Reimbursement A$5.00
 Total Delivery Income A$500.00
+Pack & Deliver Income
+Pack & Deliver Fee A$70.00
+Incentives A$10.00
+Total Pack & Deliver Income A$80.00
 Other Payments
 Miscellaneous A$10.00
 Referral / Incentives A$20.00
@@ -70,6 +75,7 @@ Uber service fee (transportation leads)* A$250.00
 Other charges from Uber A$12.00
 Charges from 3rd parties (tolls/airports/government) A$105.00
 Total Potential Tax Deductions A$367.00
+On Trip Mileage 321 km
 Portier Pacific Pty Ltd Tax summary - ${period}`;
 
 test("uber monthly summary splits rides and Eats; gross matches total payments", () => {
@@ -82,15 +88,23 @@ test("uber monthly summary splits rides and Eats; gross matches total payments",
   assert.equal(rides.lines.Promotions, 30);
   assert.equal(rides.lines.Tips, 30);
   assert.equal(eats.platform, "Uber Eats");
-  assert.equal(eats.lines["Net fare"], 405);
-  assert.equal(eats.lines.Promotions, 95);
+  assert.equal(eats.lines["Net fare"], 405 + 70); // delivery + Pack & Deliver
+  assert.equal(eats.lines.Promotions, 95 + 10);
   assert.equal(entryGross(rides) + entryGross(eats), s.totalPayments);
+  assert.equal(s.mismatch, 0);
+  assert.equal(s.km, 321);
+  assert.equal(rides.km, 321); // km goes on the main platform's entry
 });
 
 test("uber annual summary is recognised as a financial year", () => {
   const s = parseUberSummary(SUMMARY("FY 2025/2026"))!;
   assert.equal(s.period.annual, true);
   assert.equal(s.period.start, "2025-07-01");
+});
+
+test("an unrecognised section shows up as a mismatch against Total Payments", () => {
+  const s = parseUberSummary(SUMMARY("October 2026").replace("Total Payments A$1,740.00", "Total Payments A$1,790.00"))!;
+  assert.equal(s.mismatch, 50);
 });
 
 test("non-matching text is rejected", () => {

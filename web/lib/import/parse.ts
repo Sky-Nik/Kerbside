@@ -47,10 +47,12 @@ export function parseLodgedReturn(raw: string): LodgedReturn | null {
 }
 
 // ---------- Uber tax summary (monthly or annual) ----------
-export type SummaryEntry = { platform: "Uber" | "Uber Eats"; lines: Record<string, number>; fees: Record<string, number> };
+export type SummaryEntry = { platform: "Uber" | "Uber Eats"; lines: Record<string, number>; fees: Record<string, number>; km?: number };
 export type PlatformSummary = {
   kind: "platform_summary"; source: "Uber"; period: { label: string; start: string | null; end: string | null; annual: boolean };
   totalPayments: number; entries: SummaryEntry[];
+  km: number | null; // "On Trip Mileage": km with a passenger or order on board
+  mismatch: number; // Total Payments minus what was read; non-zero means a section wasn't recognised
 };
 
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
@@ -95,13 +97,24 @@ export function parseUberSummary(raw: string): PlatformSummary | null {
   const D = amt(delivery, "Total Delivery Income");
   const DI = amt(delivery, "Delivery Incentives");
   const misc = amt(other, "Miscellaneous"), referral = amt(other, "Referral / Incentives"), tips = amt(other, "Tips");
+  // Pack & Deliver has its own section; take the detail block just before its total (the cover page repeats the heading).
+  const pdTotalAt = t.search(/Total Pack & Deliver Income/i);
+  const pdBlock = pdTotalAt < 0 ? "" : t.slice(Math.max(0, t.slice(0, pdTotalAt).search(/Pack & Deliver Income(?![\s\S]*Pack & Deliver Income)/i)), pdTotalAt + 80);
+  const PD = amt(pdBlock, "Total Pack & Deliver Income");
+  const PDI = amt(pdBlock.replace(/Total Pack & Deliver Income.*$/i, ""), "(?:Pack & Deliver )?Incentives");
+  const km = (() => {
+    const m = t.match(/On Trip Mileage\s*([\d,.]+)\s*km/i) ?? t.match(/([\d,.]+)\s*km\s*On Trip Mileage/i);
+    return m ? Number(m[1].replace(/,/g, "")) : null;
+  })();
   const serviceFee = amt(deductions, String.raw`Uber service fee \(transportation leads\)\*?`);
   const otherCharges = amt(deductions, "Other charges from Uber") + amt(deductions, String.raw`Charges from 3rd parties \([^)]*\)`);
 
   // Gross = net + fees. Rides keep the Uber service fee; other charges and extras go to the bigger platform.
   const rides: SummaryEntry = { platform: "Uber", lines: { "Net fare": round2(T - serviceFee) }, fees: serviceFee ? { "Service fees": serviceFee } : {} };
-  const eats: SummaryEntry = { platform: "Uber Eats", lines: { "Net fare": round2(D - DI), Promotions: DI }, fees: {} };
-  const main = T >= D ? rides : eats;
+  // Pack & Deliver is delivery income: counted with Uber Eats (it's all business income at P8 label J).
+  const eats: SummaryEntry = { platform: "Uber Eats", lines: { "Net fare": round2(D - DI + PD - PDI), Promotions: round2(DI + PDI) }, fees: {} };
+  const main = T >= D + PD ? rides : eats;
+  if (km != null) main.km = km;
   main.lines.Promotions = round2((main.lines.Promotions ?? 0) + misc + referral);
   if (tips) main.lines.Tips = tips;
   if (otherCharges) {
@@ -110,7 +123,9 @@ export function parseUberSummary(raw: string): PlatformSummary | null {
   }
   const entries = [rides, eats].filter((e) => e === main || Object.values(e.lines).some((v) => v));
   for (const e of entries) for (const k of Object.keys(e.lines)) if (!e.lines[k]) delete e.lines[k];
-  return { kind: "platform_summary", source: "Uber", period: summaryPeriod(t), totalPayments: amt(t, "Total Payments"), entries };
+  const totalPayments = amt(t, "Total Payments");
+  const read = round2(entries.reduce((sum, e) => sum + entryGross(e), 0));
+  return { kind: "platform_summary", source: "Uber", period: summaryPeriod(t), totalPayments, entries, km, mismatch: round2(totalPayments - read) };
 }
 
 /** Sales (gross) represented by a summary entry: net + promotions + tips + fees. */

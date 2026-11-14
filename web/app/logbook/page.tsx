@@ -4,6 +4,7 @@ import { fyRange, logbook } from "@/lib/tax";
 import { auDate, kmFmt, pct } from "@/lib/fmt";
 import { addTrip, deleteRow, saveVehicle } from "@/app/actions";
 import { PageHead } from "@/components/QuarterTabs";
+import { PlatformTile } from "@/components/PlatformTile";
 import { Icon } from "@/components/Icon";
 
 const PURPOSES: Record<string, { label: string; color: string }> = {
@@ -24,6 +25,11 @@ export default async function Logbook() {
     supabase.from("trips").select("*").gte("date", start).lte("date", end).order("date", { ascending: false }).order("odo_start", { ascending: false }),
   ]);
   const trips = data ?? [];
+  // On-trip km reported by platforms (from imported tax summaries) – supporting evidence, not odometer readings
+  const { data: platformKm } = await supabase.from("income_entries").select("id,start_date,end_date,platform,km")
+    .not("km", "is", null).gte("start_date", start).lte("start_date", end).order("start_date");
+  const pkm = (platformKm ?? []).map((r) => ({ ...r, km: Number(r.km) }));
+  const pkmTotal = pkm.reduce((t, r) => t + r.km, 0);
   const lb = logbook(trips, year.odo_year_start, year.odo_year_end);
   // First trip starts from the car's starting odometer; later trips continue from the last one.
   const lastOdo = trips[0]?.odo_end ?? year.odo_year_start ?? "";
@@ -86,6 +92,31 @@ export default async function Logbook() {
       <p className="rise rise-3 mt-6 rounded-2xl bg-wash p-4 text-sm text-ink-2">
         Keep a continuous 12-week logbook. It stays valid for 5 years unless your driving pattern changes. Gaps between odometer readings count as private km.
       </p>
+
+      <section className="card rise rise-3 mt-8">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="h2">Platform-reported kilometres</h2>
+            <p className="muted max-w-2xl">“On trip mileage” from the tax summaries you import: distance with a passenger or order on board.
+              It’s good supporting evidence, but it isn’t an odometer reading, so it doesn’t change your logbook %.</p>
+          </div>
+          <div className="text-right"><p className="text-2xl font-bold tabular-nums">{kmFmt(pkmTotal)} km</p><p className="muted">this year</p></div>
+        </div>
+        {pkm.length ? (
+          <ul className="mt-3 divide-y divide-wash-2">
+            {pkm.map((r) => (
+              <li key={r.id} className="flex items-center gap-4 py-3">
+                <PlatformTile name={r.platform} size={36} />
+                <span className="flex-1 text-sm"><b className="block">{r.platform}</b><span className="text-mute">{auDate(r.start_date)} – {auDate(r.end_date)}</span></span>
+                <span className="font-bold tabular-nums">{kmFmt(r.km)} km</span>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="muted mt-3">None yet. Import a monthly Uber tax summary on the Income page and its kilometres appear here.</p>}
+        {lb.businessKm > 0 && pkmTotal > lb.businessKm && (
+          <p className="mt-3 rounded-xl bg-[#fff8e6] p-3 text-sm">Platforms report more on-trip km ({kmFmt(pkmTotal)}) than your logbook’s business km ({kmFmt(lb.businessKm)}). Check for missing logbook trips.</p>
+        )}
+      </section>
 
       <section className="card rise rise-3 mt-8">
         <h2 className="h2">Add a trip</h2>

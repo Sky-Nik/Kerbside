@@ -152,7 +152,7 @@ type ImportPayload = {
   path: string; fileName: string; kind: "tax_return" | "platform_summary" | "other"; fy: string | null; title: string;
   parsed: Record<string, unknown>;
   // platform summary only: entries to add to income (already reviewed by the user)
-  entries?: { platform: string; start_date: string; end_date: string; lines: Record<string, number>; fees: Record<string, number> }[];
+  entries?: { platform: string; start_date: string; end_date: string; lines: Record<string, number>; fees: Record<string, number>; km?: number | null }[];
 };
 
 /** Step 2 of an import: save the document and (optionally) the income it contains. */
@@ -170,7 +170,7 @@ export async function confirmImport(p: ImportPayload) {
   if (rows.length) {
     check((await supabase.from("income_entries").insert(rows.map((e) => ({
       user_id: user.id, platform: e.platform, start_date: e.start_date, end_date: e.end_date,
-      lines: e.lines, fees: e.fees, source_document_id: doc.id,
+      lines: e.lines, fees: e.fees, km: e.km != null && e.km >= 0 ? e.km : null, source_document_id: doc.id,
     })))).error);
   }
   done();
