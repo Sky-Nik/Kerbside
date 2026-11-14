@@ -1,8 +1,9 @@
 import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear } from "@/lib/data";
-import { fyRange, logbook } from "@/lib/tax";
-import { auDate, kmFmt, pct } from "@/lib/fmt";
-import { addTrip, deleteRow, saveVehicle } from "@/app/actions";
+import { fyRange, logbook, todayAu } from "@/lib/tax";
+import { aud, auDate, kmFmt, pct } from "@/lib/fmt";
+import { addFuel, addTrip, deleteRow, saveVehicle } from "@/app/actions";
+import { fuelStats } from "@/lib/fuel";
 import { PageHead } from "@/components/QuarterTabs";
 import { PlatformTile } from "@/components/PlatformTile";
 import { Icon } from "@/components/Icon";
@@ -26,6 +27,8 @@ export default async function Logbook() {
     supabase.from("trips").select("*").gte("date", start).lte("date", end).order("date", { ascending: false }).order("odo_start", { ascending: false }),
   ]);
   const trips = data ?? [];
+  const { data: fillRows } = await supabase.from("fuel_fills").select("id,date,odometer,litres,cost").gte("date", start).lte("date", end);
+  const fuel = fuelStats((fillRows ?? []).map((r) => ({ ...r, litres: Number(r.litres), cost: Number(r.cost) })));
   // On-trip km reported by platforms (from imported tax summaries) – supporting evidence, not odometer readings
   const { data: platformKm } = await supabase.from("income_entries").select("id,start_date,end_date,platform,km")
     .not("km", "is", null).gte("start_date", start).lte("start_date", end).order("start_date");
@@ -154,6 +157,39 @@ export default async function Logbook() {
                 </span>
                 <span className="font-bold tabular-nums">{kmFmt(t.odo_end - t.odo_start)} km</span>
                 <form action={deleteRow}><input type="hidden" name="table" value="trips" /><input type="hidden" name="id" value={t.id} /><button className="btn-danger">Delete</button></form>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="card rise rise-4 mt-8">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="h2 flex items-center gap-2">Fuel tracker<Tip k="fuel" align="left" /></h2>
+            <p className="muted max-w-2xl">Fill the tank up each time and note the odometer. Economy is worked out between fills.</p>
+          </div>
+          {fuel.per100 != null && (
+            <div className="flex gap-6 text-right">
+              <div><p className="text-2xl font-bold tabular-nums">{fuel.per100.toFixed(1)}</p><p className="muted">L/100 km</p></div>
+              <div><p className="text-2xl font-bold tabular-nums">{(fuel.perKm! * 100).toFixed(1)}c</p><p className="muted">fuel per km</p></div>
+            </div>
+          )}
+        </div>
+        <form action={addFuel} className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-6">
+          <label className="field">Date<input name="date" type="date" required min={start} max={end} defaultValue={todayAu() <= end ? todayAu() : end} /></label>
+          <label className="field">Odometer<input name="odometer" type="number" required min="0" defaultValue={lastOdo} /></label>
+          <label className="field">Litres<input name="litres" type="number" step="0.01" min="0.01" required /></label>
+          <label className="field">Total paid<input name="cost" type="number" step="0.01" min="0" required placeholder="0.00" /></label>
+          <label className="flex items-center gap-2 pb-3 text-sm"><input type="checkbox" name="as_expense" defaultChecked className="h-4 w-4 accent-black" />Also add as an expense</label>
+          <button className="btn"><Icon name="plus" size={18} />Add fill-up</button>
+        </form>
+        {fuel.rows.length > 0 && (
+          <ul className="mt-4 divide-y divide-wash-2">
+            {fuel.rows.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3">
+                <span className="min-w-0 flex-1"><span className="block font-medium">{auDate(r.date)} · {r.litres.toFixed(2)} L · {aud(r.cost)}</span>
+                  <span className="block text-[13px] text-mute">{kmFmt(r.odometer)} km · {(r.perL * 100).toFixed(1)}c/L{r.per100 != null ? ` · ${kmFmt(r.km)} km since last · ${r.per100.toFixed(1)} L/100 km` : " · first fill"}</span></span>
+                <form action={deleteRow}><input type="hidden" name="table" value="fuel_fills" /><input type="hidden" name="id" value={r.id} /><button className="btn-danger">Delete</button></form>
               </li>
             ))}
           </ul>

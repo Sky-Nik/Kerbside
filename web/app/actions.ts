@@ -49,7 +49,7 @@ export async function saveIncome(f: FormData) {
   done();
 }
 
-const DELETABLE = ["income_entries", "other_income", "trips", "car_transactions"] as const;
+const DELETABLE = ["income_entries", "other_income", "trips", "car_transactions", "fuel_fills"] as const;
 export async function deleteRow(f: FormData) {
   const table = str(f, "table") as (typeof DELETABLE)[number];
   if (!DELETABLE.includes(table)) throw new Error("Not allowed");
@@ -223,5 +223,19 @@ export async function stopRecurring(f: FormData) {
   const { data } = await supabase.from("recurring_expenses").select("start_date").eq("id", id).maybeSingle();
   const today = todayAu();
   check((await supabase.from("recurring_expenses").update({ end_date: data && data.start_date > today ? data.start_date : today }).eq("id", id)).error);
+  done();
+}
+
+// ---------- Fuel tracker ----------
+export async function addFuel(f: FormData) {
+  const { supabase } = await requireUser();
+  const date = str(f, "date"), cost = money(f, "cost");
+  let expense_id: string | null = null;
+  if (f.get("as_expense")) {
+    const { data, error } = await supabase.from("expenses").insert({ date, amount: cost, category: "Car - Fuel", description: `Fuel ${str(f, "litres")} L` }).select("id").single();
+    check(error);
+    expense_id = data!.id;
+  }
+  check((await supabase.from("fuel_fills").insert({ date, odometer: Math.round(Number(str(f, "odometer"))), litres: Number(str(f, "litres")), cost, expense_id })).error);
   done();
 }

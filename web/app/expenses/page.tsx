@@ -6,6 +6,7 @@ import { aud, auDate, pct } from "@/lib/fmt";
 import { addRecurring, deleteExpense, stopRecurring } from "@/app/actions";
 import { PageHead, QuarterTabs } from "@/components/QuarterTabs";
 import { ExpenseForm } from "@/components/ExpenseForm";
+import { BankImport } from "@/components/BankImport";
 import { AttachReceipt } from "@/components/AttachReceipt";
 import { Icon } from "@/components/Icon";
 import { Tip } from "@/components/Tip";
@@ -54,6 +55,12 @@ export default async function Expenses({ searchParams }: PageProps<"/expenses">)
       <section className="card rise rise-2 mb-8">
         <h2 className="h2 mb-4 flex items-center gap-2">Add an expense<Tip k="addExpense" align="left" /></h2>
         <ExpenseForm min={start} max={end} defaultDate={today >= start && today <= end ? today : start} />
+      </section>
+
+      <section className="card rise rise-2 mb-8">
+        <h2 className="h2 mb-1 flex items-center gap-2">Check a bank statement<Tip k="bank" align="left" /></h2>
+        <p className="muted mb-4">Find fuel, tolls and other work costs you forgot to add.</p>
+        <BankImport />
       </section>
 
       <section className="card rise rise-3 mb-8">

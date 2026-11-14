@@ -24,6 +24,8 @@ export const HELP = {
   moneyGoes: "Your deductible expenses grouped by category, biggest first, so you can see what costs you most.",
   reports: "Ready-to-lodge PDFs. Preview in the browser, then download from the preview.",
   quarters: "Each BAS quarter’s sales, profit and GST. Tap one to see its income.",
+  bank: "Download a CSV statement from your bank’s website. It’s read on this device only, never uploaded. Kerbside lists fuel, tolls, phone, parking and car costs it can’t find in your expenses.",
+  fuel: "Log each fill-up with the odometer reading. Kerbside works out litres per 100 km and fuel cost per km between fills. Tick the box to also add it as a fuel expense.",
   scan: "Reads the photo on your device – nothing is sent anywhere. Works best on a flat, well-lit receipt. Always check what it fills in.",
   recurring: "Set up a cost once and Kerbside adds it on every due date, so nothing gets missed. Stopping keeps the ones already added.",
   reminders: "Things that need doing soon: BAS due dates, weeks without earnings, logbook check-ins and renewals. Add them to your phone’s calendar too.",
