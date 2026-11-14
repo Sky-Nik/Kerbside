@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: "Kerbside",
   description: "Kerbside: income, receipts, logbook, BAS and tax return for Australian rideshare drivers",
   appleWebApp: { title: "Kerbside", capable: true, statusBarStyle: "black" },
+  icons: { apple: [{ url: "/pwa-icon/180", sizes: "180x180" }] },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#000000" };
 

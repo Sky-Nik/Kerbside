@@ -86,13 +86,18 @@ export function Login({ initialError }: { initialError: string | null }) {
           <form onSubmit={submit} className="space-y-4">
             <label className="field">Email<input name="email" type="email" required autoComplete="email" placeholder="you@example.com" /></label>
             <label className="field">
-              Password
+              <span className="flex justify-between">Password
+                {mode === "in" && <a href="/forgot" className="text-[13px] font-normal text-mute underline underline-offset-2 hover:text-ink">Forgot password?</a>}
+              </span>
               <input name="password" type="password" required minLength={8} placeholder="At least 8 characters"
                 autoComplete={mode === "in" ? "current-password" : "new-password"} />
             </label>
             <button className="btn h-12 w-full text-base" disabled={busy}>{busy ? "Please wait…" : mode === "in" ? "Sign in" : "Sign up"}</button>
             {msg && <p className="rounded-xl bg-wash p-3 text-sm">{msg}</p>}
           </form>
+          <p className="mt-4 text-xs text-mute">
+            By continuing you agree to the <a href="/terms" className="underline">Terms</a> and <a href="/privacy" className="underline">Privacy policy</a>.
+          </p>
           <p className="mt-6 text-sm text-mute">
             {mode === "in" ? "New here? " : "Already have an account? "}
             <button className="link" onClick={() => { setMode(mode === "in" ? "up" : "in"); setMsg(null); }}>

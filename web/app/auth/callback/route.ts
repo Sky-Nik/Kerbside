@@ -15,5 +15,7 @@ export async function GET(request: NextRequest) {
   const supabase = await supabaseServer();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) return fail(error.message);
-  return NextResponse.redirect(new URL("/", request.url));
+  // Optional ?next=/path (same-site only), e.g. the password reset page
+  const next = params.get("next");
+  return NextResponse.redirect(new URL(next && next.startsWith("/") && !next.startsWith("//") ? next : "/", request.url));
 }

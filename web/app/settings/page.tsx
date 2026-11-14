@@ -5,6 +5,7 @@ import { pct } from "@/lib/fmt";
 import { saveSettings } from "@/app/actions";
 import { PageHead } from "@/components/QuarterTabs";
 import { PlatformPicker } from "@/components/PlatformPicker";
+import { DataTools } from "@/components/DataTools";
 import type { PlatformName, WorkType } from "@/lib/platforms";
 import { Tip } from "@/components/Tip";
 
@@ -100,6 +101,11 @@ export default async function Settings() {
           <button className="btn shadow-lg shadow-black/20">Save settings</button>
         </div>
       </form>
+      <section className="card rise mt-8">
+        <h2 className="h2 mb-4">Your data</h2>
+        <DataTools fy={fy} />
+        <p className="muted mt-4"><a href="/privacy" className="underline">Privacy policy</a> · <a href="/terms" className="underline">Terms</a></p>
+      </section>
     </main>
   );
 }
