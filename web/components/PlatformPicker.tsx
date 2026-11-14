@@ -46,7 +46,7 @@ export function PlatformPicker({ initialTypes, initialPlatforms, initialGst, sub
           {TYPES.map((t) => {
             const on = types.includes(t.id);
             return (
-              <button key={t.id} type="button" aria-pressed={on} onClick={() => setTypes(toggle(types, t.id))}
+              <button key={t.id} type="button" aria-pressed={on} onClick={() => setTypes((cur) => toggle(cur, t.id))}
                 className={`flex items-start gap-3 rounded-2xl p-5 text-left transition ${on ? "bg-black text-white" : "bg-wash hover:bg-wash-2"}`}>
                 <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md ring-2 ${on ? "bg-warn text-black ring-warn" : "ring-mute-2"}`}>
                   {on && <Icon name="check" size={16} />}
@@ -69,7 +69,7 @@ export function PlatformPicker({ initialTypes, initialPlatforms, initialGst, sub
             {available.map((p) => {
               const on = chosen.includes(p);
               return (
-                <button key={p} type="button" aria-pressed={on} onClick={() => setPicked(toggle(picked, p))}
+                <button key={p} type="button" aria-pressed={on} onClick={() => setPicked((cur) => toggle(cur, p))}
                   className={`flex items-center gap-3 rounded-2xl p-4 text-left ring-2 transition ${on ? "bg-white ring-ink" : "bg-wash ring-transparent hover:bg-wash-2"}`}>
                   <PlatformTile name={p} size={48} />
                   <span className="flex-1">
