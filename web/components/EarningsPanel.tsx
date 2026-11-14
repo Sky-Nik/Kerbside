@@ -5,7 +5,7 @@ import { Icon } from "./Icon";
 import { PlatformTile } from "./PlatformTile";
 
 export type EarningEntry = { start_date: string; platform: string; lines: Record<string, number> };
-export type PastYear = { fy: string; business: number; source: string };
+export type PastYear = { fy: string; net: number; gross: number; expenses: number; wages: number; source: string };
 
 const VIEWS: [View, string][] = [["week", "Week"], ["month", "Month"], ["year", "Year"]];
 const COUNT: Record<View, number> = { week: 8, month: 12, year: 0 };
@@ -25,12 +25,11 @@ export function EarningsPanel({ view, at, today, entries, expenses, pastYears, f
   const href = (v: View, b: Bucket) => `/?view=${v}&at=${b.start}`;
 
   const total = (b: Bucket) => {
+    // A past year with a lodged return (or annual summary) uses that document: it's the official record.
+    const doc = view === "year" && b.key !== now.key ? pastYears.find((p) => p.fy === b.key) : undefined;
+    if (doc) return { amount: doc.net, from: doc };
     const rows = entries.filter((e) => inBucket(b, e.start_date));
-    if (view === "year" && !rows.length) {
-      const doc = pastYears.find((p) => p.fy === b.key);
-      if (doc) return { amount: doc.business, from: doc.source };
-    }
-    return { amount: rows.reduce((s, e) => s + earned(e), 0), from: null as string | null };
+    return { amount: rows.reduce((s, e) => s + earned(e), 0), from: null as PastYear | null };
   };
 
   // Years: from the earliest year with any data up to this year
@@ -76,13 +75,15 @@ export function EarningsPanel({ view, at, today, entries, expenses, pastYears, f
 
       <p className="display relative mt-3 tabular-nums">{aud(cur.amount)}</p>
       <p className="relative mt-1 text-sm text-white/60">
-        {cur.from ? `Income from your ${cur.from.toLowerCase()} (business + wages, ex GST)`
+        {cur.from ? (cur.from.source === "Lodged tax return"
+            ? `From your lodged tax return: business income ${aud(cur.from.gross)} − expenses ${aud(cur.from.expenses)}${cur.from.wages ? ` + wages ${aud(cur.from.wages)}` : ""}`
+            : `From your ${cur.from.source.toLowerCase()} (before expenses)`)
           : view === "year" && sel.key === now.key ? "So far this financial year · net fare + promotions + tips"
           : change == null ? "Net fare + promotions + tips" :
           <><span className={change >= 0 ? "text-[#7be3a8]" : "text-[#ff9c8f]"}>{change >= 0 ? "▲" : "▼"} {Math.abs(Math.round(change * 100))}%</span> vs previous {view}</>}
       </p>
 
-      {byPlatform.length > 0 && (
+      {!cur.from && byPlatform.length > 0 && (
         <div className="relative mt-4 flex flex-wrap gap-2">
           {byPlatform.map(({ p, v }) => (
             <span key={p} className="flex items-center gap-2 rounded-full bg-white/10 py-1 pr-3 pl-1 text-sm">
@@ -109,13 +110,21 @@ export function EarningsPanel({ view, at, today, entries, expenses, pastYears, f
         })}
       </svg>
 
-      <div className="relative mt-4 grid grid-cols-3 gap-4 border-t border-white/15 pt-4">
-        <div><p className="text-xs text-white/50">Spent (receipts)</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(spent)}</p></div>
-        <div><p className="text-xs text-white/50">Earned − spent</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(cur.amount - spent)}</p></div>
-        {view === "year" && sel.key === fyProfit.fy
-          ? <div><p className="text-xs text-white/50">Business profit (ex GST)</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(fyProfit.profit)}</p></div>
-          : <div><p className="text-xs text-white/50">Entries</p><p className="mt-1 text-lg font-bold tabular-nums">{rows.length}</p></div>}
-      </div>
+      {cur.from ? (
+        <div className="relative mt-4 grid grid-cols-3 gap-4 border-t border-white/15 pt-4">
+          <div><p className="text-xs text-white/50">Business income</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(cur.from.gross)}</p></div>
+          <div><p className="text-xs text-white/50">Business expenses</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(cur.from.expenses)}</p></div>
+          <div><p className="text-xs text-white/50">Wages</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(cur.from.wages)}</p></div>
+        </div>
+      ) : (
+        <div className="relative mt-4 grid grid-cols-3 gap-4 border-t border-white/15 pt-4">
+          <div><p className="text-xs text-white/50">Spent (receipts)</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(spent)}</p></div>
+          <div><p className="text-xs text-white/50">Earned − spent</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(cur.amount - spent)}</p></div>
+          {view === "year" && sel.key === fyProfit.fy
+            ? <div><p className="text-xs text-white/50">Business profit (ex GST)</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(fyProfit.profit)}</p></div>
+            : <div><p className="text-xs text-white/50">Entries</p><p className="mt-1 text-lg font-bold tabular-nums">{rows.length}</p></div>}
+        </div>
+      )}
       {view === "year" && (
         <p className="relative mt-3 text-xs text-white/50">
           Earlier years come from tax returns you upload. <Link href="/documents" className="underline">Upload a past return</Link>

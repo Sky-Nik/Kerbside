@@ -50,7 +50,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
     supabase.from("income_entries").select("start_date,platform,lines"),
     supabase.from("expenses").select("date,amount"),
   ]);
-  // Past years: everything the return counted as earned income (some years platforms were lodged as wages).
+  // Past years: net income from the lodged return (net business + wages; some years platforms were lodged as wages).
   // Kilometres for the km card: odometer readings if both are entered, else what's in the logbook
   const odoKm = year.odo_year_start != null && year.odo_year_end != null && year.odo_year_end > year.odo_year_start
     ? year.odo_year_end - year.odo_year_start : 0;
@@ -58,7 +58,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const kmSource = odoKm ? "From your odometer readings" : "Logged in your logbook";
   const { data: kmRows } = await supabase.from("income_entries").select("km").not("km", "is", null).gte("start_date", start).lte("start_date", end);
   const platformKm = Math.round((kmRows ?? []).reduce((t, r) => t + Number(r.km), 0));
-  const pastYears = history.filter((h) => h.source !== "Kerbside (this year)").map((h) => ({ fy: h.fy, business: h.business + h.wages, source: h.source }));
+  const pastYears = history.filter((h) => h.source !== "Kerbside (this year)")
+    .map((h) => ({ fy: h.fy, net: h.net, gross: h.business, expenses: h.expenses, wages: h.wages, source: h.source }));
 
   return (
     <main className="space-y-6 pt-8">
