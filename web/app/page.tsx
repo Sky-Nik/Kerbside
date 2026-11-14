@@ -4,12 +4,13 @@ import { getFy, loadYear, loadYearData, pickQuarter, requirePlatforms } from "@/
 import { BAS_DUE, fyRange, summarise } from "@/lib/tax";
 import { aud, pct } from "@/lib/fmt";
 import { Icon } from "@/components/Icon";
-import { CategoryBars, HistoryChart, IncomeExpenseChart } from "@/components/Charts";
+import { CategoryBars, IncomeExpenseChart } from "@/components/Charts";
+import { EarningsPanel } from "@/components/EarningsPanel";
 import { loadHistory } from "@/lib/history";
 
 const QN = ["Jul – Sep", "Oct – Dec", "Jan – Mar", "Apr – Jun"];
 
-export default async function Dashboard() {
+export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const { supabase } = await requireUser();
   await requirePlatforms(supabase);
   const fy = await getFy();
@@ -39,12 +40,23 @@ export default async function Dashboard() {
   const qExpenses = [0, 1, 2, 3].map((i) => s.q.fees[i] + s.q.expenses[i]);
   const history = await loadHistory(supabase, fy, { business: t.income, wages: Number(year.wages) || 0, other: Number(year.other_income) || 0 });
 
+  // Earnings panel: all-time entries and expenses (small tables), past years from uploaded documents
+  const sp = await searchParams;
+  const view = sp.view === "month" || sp.view === "year" ? sp.view : "week";
+  const today = new Date().toISOString().slice(0, 10);
+  const at = typeof sp.at === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.at) ? sp.at : today;
+  const [{ data: allEntries }, { data: allExpenses }] = await Promise.all([
+    supabase.from("income_entries").select("start_date,platform,lines"),
+    supabase.from("expenses").select("date,amount"),
+  ]);
+  const pastYears = history.filter((h) => h.source !== "Kerbside (this year)").map((h) => ({ fy: h.fy, business: h.business, source: h.source }));
+
   return (
     <main className="space-y-6 pt-8">
       <div className="rise flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow mb-1">Financial year {fy}</p>
-          <h1 className="h1">Your earnings</h1>
+          <h1 className="h1">Dashboard</h1>
         </div>
         <div className="flex gap-2">
           <Link href="/income" className="btn-secondary btn-sm"><Icon name="income" size={16} />Enter income</Link>
@@ -53,17 +65,9 @@ export default async function Dashboard() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
-        {/* Hero */}
-        <section className="card-ink rise rise-1 relative overflow-hidden lg:col-span-3">
-          <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full border-[40px] border-white/[0.04]" />
-          <p className="text-sm font-medium text-white/60">Net business profit · FY {fy}</p>
-          <p className="display mt-2 tabular-nums">{aud(s.tax.profit)}</p>
-          <div className="mt-8 grid grid-cols-3 gap-4 border-t border-white/15 pt-5">
-            <div><p className="text-xs text-white/50">Income</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(s.tax.income)}</p></div>
-            <div><p className="text-xs text-white/50">Deductions</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(s.tax.totalExpenses)}</p></div>
-            <div><p className="text-xs text-white/50">GST {s.basYear.net < 0 ? "refund" : "owing"}</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(Math.abs(s.basYear.net))}</p></div>
-          </div>
-        </section>
+        <EarningsPanel view={view} at={at} today={today} entries={allEntries ?? []}
+          expenses={(allExpenses ?? []).map((x) => ({ date: x.date, amount: Number(x.amount) }))}
+          pastYears={pastYears} fyProfit={{ fy, profit: t.profit }} />
 
         {/* Current BAS */}
         <Link href="/bas" className="card-wash rise rise-2 group flex flex-col justify-between lg:col-span-2">
@@ -133,33 +137,6 @@ export default async function Dashboard() {
           {categories.length > 6 && <p className="muted mt-3">+ {categories.length - 6} more categories</p>}
         </section>
       </div>
-
-      <section className="card rise rise-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="h2">Income history</h2>
-            <p className="muted">Every year in one place. Past years come from lodged returns you upload in Documents.</p>
-          </div>
-          <Link href="/documents" className="btn-secondary btn-sm"><Icon name="upload" size={14} />Upload a past return</Link>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-4 text-xs">
-          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-black" />Business (ex GST)</span>
-          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-warn" />Wages</span>
-          <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-mute-2" />Interest & other</span>
-        </div>
-        <div className="mt-3"><HistoryChart years={history} /></div>
-        <div className="mt-2 overflow-x-auto">
-          <table className="tbl min-w-[520px]">
-            <thead><tr><th>Year</th><th className="num">Business</th><th className="num">Wages</th><th className="num">Other</th><th className="num">Taxable income</th><th>Source</th></tr></thead>
-            <tbody>
-              {history.map((h) => (
-                <tr key={h.fy}><td className="font-medium">{h.fy}</td><td className="num">{aud(h.business)}</td><td className="num">{aud(h.wages)}</td>
-                  <td className="num">{aud(h.other)}</td><td className="num">{h.taxable == null ? "–" : aud(h.taxable)}</td><td className="text-xs text-mute">{h.source}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
 
       <section className="card rise rise-3 flex flex-col gap-5 lg:flex-row lg:items-center">
         <div className="flex items-center gap-4 lg:flex-1">

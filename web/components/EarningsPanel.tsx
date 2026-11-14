@@ -1,0 +1,124 @@
+import Link from "next/link";
+import { aud } from "@/lib/fmt";
+import { bucketOf, inBucket, series, shift, type Bucket, type View } from "@/lib/periods";
+import { Icon } from "./Icon";
+import { PlatformTile } from "./PlatformTile";
+
+export type EarningEntry = { start_date: string; platform: string; lines: Record<string, number> };
+export type PastYear = { fy: string; business: number; source: string };
+
+const VIEWS: [View, string][] = [["week", "Week"], ["month", "Month"], ["year", "Year"]];
+const COUNT: Record<View, number> = { week: 8, month: 12, year: 0 };
+const earned = (e: EarningEntry) => Object.values(e.lines ?? {}).reduce((s, v) => s + (Number(v) || 0), 0);
+
+/**
+ * Dashboard hero: earnings for a week, month or financial year, with arrows to earlier periods and a bar chart.
+ * Earnings = what the platforms paid you (net fare + promotions + tips), counted by each entry's start date.
+ * Years with no entries fall back to business income from an uploaded tax return / annual summary.
+ */
+export function EarningsPanel({ view, at, today, entries, expenses, pastYears, fyProfit }: {
+  view: View; at: string; today: string; entries: EarningEntry[]; expenses: { date: string; amount: number }[];
+  pastYears: PastYear[]; fyProfit: { fy: string; profit: number };
+}) {
+  const sel = bucketOf(view, at);
+  const now = bucketOf(view, today);
+  const href = (v: View, b: Bucket) => `/?view=${v}&at=${b.start}`;
+
+  const total = (b: Bucket) => {
+    const rows = entries.filter((e) => inBucket(b, e.start_date));
+    if (view === "year" && !rows.length) {
+      const doc = pastYears.find((p) => p.fy === b.key);
+      if (doc) return { amount: doc.business, from: doc.source };
+    }
+    return { amount: rows.reduce((s, e) => s + earned(e), 0), from: null as string | null };
+  };
+
+  // Years: from the earliest year with any data up to this year
+  const firstFy = [...entries.map((e) => bucketOf("year", e.start_date).key), ...pastYears.map((p) => p.fy), now.key].sort()[0];
+  const yearCount = Math.max(1, Number(now.key.slice(0, 4)) - Number(firstFy.slice(0, 4)) + 1);
+  const last = sel.start > now.start ? sel : now;
+  const bars = series(view, view === "year" ? now : last, view === "year" ? Math.max(yearCount, 3) : COUNT[view]);
+  const values = bars.map((b) => total(b).amount);
+  const max = Math.max(1, ...values);
+
+  const cur = total(sel);
+  const rows = entries.filter((e) => inBucket(sel, e.start_date));
+  const byPlatform = [...new Set(rows.map((e) => e.platform))]
+    .map((p) => ({ p, v: rows.filter((e) => e.platform === p).reduce((s, e) => s + earned(e), 0) }))
+    .sort((a, b) => b.v - a.v);
+  const spent = expenses.filter((x) => inBucket(sel, x.date)).reduce((s, x) => s + Number(x.amount), 0);
+  const prev = total(shift(view, sel, -1)).amount;
+  const change = prev > 0 ? (cur.amount - prev) / prev : null;
+  const canNext = shift(view, sel, 1).start <= now.start;
+
+  return (
+    <section className="card-ink rise rise-1 relative overflow-hidden lg:col-span-3">
+      <div aria-hidden className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full border-[40px] border-white/[0.04]" />
+      <div className="relative flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm font-medium text-white/60">Your earnings</p>
+        <div className="inline-flex gap-1 rounded-full bg-white/10 p-1">
+          {VIEWS.map(([v, l]) => (
+            <Link key={v} href={href(v, bucketOf(v, sel.start > today ? today : sel.start))} scroll={false}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${v === view ? "bg-white text-black" : "text-white/70 hover:text-white"}`}>{l}</Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="relative mt-4 flex items-center gap-2">
+        <Link href={href(view, shift(view, sel, -1))} scroll={false} aria-label="Previous period"
+          className="grid h-8 w-8 place-items-center rounded-full bg-white/10 hover:bg-white/20"><Icon name="chevron" size={16} className="rotate-180" /></Link>
+        <span className="min-w-0 flex-1 text-center text-sm font-medium sm:flex-none sm:px-2">{sel.label}{sel.key === now.key ? " · now" : ""}</span>
+        {canNext ? (
+          <Link href={href(view, shift(view, sel, 1))} scroll={false} aria-label="Next period"
+            className="grid h-8 w-8 place-items-center rounded-full bg-white/10 hover:bg-white/20"><Icon name="chevron" size={16} /></Link>
+        ) : <span className="h-8 w-8" />}
+      </div>
+
+      <p className="display relative mt-3 tabular-nums">{aud(cur.amount)}</p>
+      <p className="relative mt-1 text-sm text-white/60">
+        {cur.from ? `Business income from your ${cur.from.toLowerCase()} (ex GST)` : change == null ? "Net fare + promotions + tips" :
+          <><span className={change >= 0 ? "text-[#7be3a8]" : "text-[#ff9c8f]"}>{change >= 0 ? "▲" : "▼"} {Math.abs(Math.round(change * 100))}%</span> vs previous {view}</>}
+      </p>
+
+      {byPlatform.length > 0 && (
+        <div className="relative mt-4 flex flex-wrap gap-2">
+          {byPlatform.map(({ p, v }) => (
+            <span key={p} className="flex items-center gap-2 rounded-full bg-white/10 py-1 pr-3 pl-1 text-sm">
+              <PlatformTile name={p} size={24} /><b className="tabular-nums">{aud(v)}</b>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <svg viewBox="0 0 520 120" className="relative mt-5 h-auto w-full" role="img"
+        aria-label={bars.map((b, i) => `${b.label}: ${aud(values[i])}`).join("; ")}>
+        {bars.map((b, i) => {
+          const slot = 520 / bars.length, w = Math.min(44, slot * 0.6), x = slot * i + (slot - w) / 2;
+          const h = Math.max(values[i] > 0 ? 3 : 1, (88 * values[i]) / max);
+          const on = b.key === sel.key;
+          return (
+            <a key={b.key} href={href(view, b)}>
+              <title>{`${b.label}: ${aud(values[i])}`}</title>
+              <rect x={slot * i} y="0" width={slot} height="120" fill="transparent" />
+              <rect x={x} y={96 - h} width={w} height={h} rx="4" fill={on ? "#ffc043" : "rgba(255,255,255,0.28)"} />
+              <text x={x + w / 2} y="114" textAnchor="middle" fontSize="11" fill={on ? "#ffffff" : "rgba(255,255,255,0.55)"} fontWeight={on ? 700 : 500}>{b.short}</text>
+            </a>
+          );
+        })}
+      </svg>
+
+      <div className="relative mt-4 grid grid-cols-3 gap-4 border-t border-white/15 pt-4">
+        <div><p className="text-xs text-white/50">Spent (receipts)</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(spent)}</p></div>
+        <div><p className="text-xs text-white/50">Earned − spent</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(cur.amount - spent)}</p></div>
+        {view === "year" && sel.key === fyProfit.fy
+          ? <div><p className="text-xs text-white/50">Business profit (ex GST)</p><p className="mt-1 text-lg font-bold tabular-nums">{aud(fyProfit.profit)}</p></div>
+          : <div><p className="text-xs text-white/50">Entries</p><p className="mt-1 text-lg font-bold tabular-nums">{rows.length}</p></div>}
+      </div>
+      {view === "year" && (
+        <p className="relative mt-3 text-xs text-white/50">
+          Earlier years come from tax returns you upload. <Link href="/documents" className="underline">Upload a past return</Link>
+        </p>
+      )}
+    </section>
+  );
+}
