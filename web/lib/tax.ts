@@ -103,6 +103,12 @@ export const CAR_LINES = [...new Set(CATEGORIES.filter((c) => c.use === "car").m
 export const OTHER_LINES = [...new Set(CATEGORIES.filter((c) => c.use !== "car").map((c) => c.line))];
 
 // ATO rates. ponytail: 2026-27 copies 2025-26 until the ATO publishes it; users can override per year in Settings.
+/** Instant asset write-off limit per asset for small businesses (ATO: $20,000 for assets first used on or after 1 July 2023). */
+export const IAWO_LIMIT = 20000;
+/** Concessional (deductible) super contributions cap. ATO: $30,000 2024-25 to 2025-26, $32,500 from 1 July 2026. */
+export const SUPER_CAP: Record<string, number> = { "2026-27": 32500, "2025-26": 30000, "2024-25": 30000, "2023-24": 27500 };
+export const SG_RATE = 0.12; // employer super guarantee from 1 July 2025
+
 export const ATO_RATES: Record<string, { carLimit: number; cpk: number }> = {
   "2026-27": { carLimit: 69674, cpk: 0.91 }, // cpk: ATO 91c (89c + 2c one-off uplift). Car limit: not yet published, 2025-26 figure.
   "2025-26": { carLimit: 69674, cpk: 0.88 },
@@ -285,7 +291,10 @@ export function summarise(y: YearSettings, d: YearData) {
   const lb = logbook(d.trips, y.odo_year_start, y.odo_year_end);
   const annualCarPct = lb.total > 0 ? lb.businessPct : y.pct.car.reduce((s, v) => s + num(v), 0) / 4;
   const costBase = Math.max(0, Math.min(num(y.car_cost), num(y.car_limit)) - carGstClaimed);
-  const depFull = round2((num(y.opening_value) * num(y.days_owned)) / 365 * (2 / num(y.effective_life || 8)));
+  // Instant asset write-off: a car costing under $20,000 (ex GST credits) first used this year is deducted in full.
+  const { start: fyStart, end: fyEnd } = fyRange(y.fy);
+  const writeOff = costBase > 0 && costBase < IAWO_LIMIT && !!y.car_start_date && y.car_start_date >= fyStart && y.car_start_date <= fyEnd;
+  const depFull = writeOff ? round2(costBase) : round2((num(y.opening_value) * num(y.days_owned)) / 365 * (2 / num(y.effective_life || 8)));
   const depreciation = round2(depFull * annualCarPct);
   const interest = round2(num(y.loan_interest) * annualCarPct);
   const sum = (a: number[]) => round2(a.reduce((s, v) => s + v, 0));
@@ -332,7 +341,7 @@ export function summarise(y: YearSettings, d: YearData) {
     tax: {
       businessIncome: sum(q.netIncome), income, carLines, depreciation, interest, logbookTotal, cpkKm, cpkTotal,
       carClaim, feeLines, feesTotal, otherLines, otherTotal, totalExpenses, profit: round2(income - totalExpenses),
-      dep: { carGstClaimed, costBase, depFull, depreciation, closing: round2(num(y.opening_value) - depFull) },
+      dep: { carGstClaimed, costBase, depFull, depreciation, writeOff, closing: writeOff ? 0 : round2(num(y.opening_value) - depFull) },
     },
   };
 }

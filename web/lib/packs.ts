@@ -38,7 +38,7 @@ function save(files: Record<string, Uint8Array>, filename: string): Blob {
 export async function exportEverything(onProgress: (m: string) => void) {
   const sb = supabaseBrowser();
   const tables = ["profiles", "years", "income_entries", "expenses", "trips", "car_transactions", "documents",
-    "recurring_expenses", "fuel_fills", "assets"] as const;
+    "recurring_expenses", "fuel_fills"] as const;
   const files: Record<string, Uint8Array> = {};
   for (const t of tables) {
     onProgress(`Exporting ${t.replace("_", " ")}…`);

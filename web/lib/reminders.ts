@@ -49,6 +49,12 @@ export function buildReminders(p: {
     }
   }
 
+  // Super: deductible personal contributions must reach the fund by 30 June
+  const md = today.slice(5);
+  if (md >= "05-01" && md <= "06-30") {
+    out.push({ key: "super", title: "Super top-up before 30 June", detail: "Personal contributions can cut your tax. Send a notice of intent to your fund before you lodge.", due: `${today.slice(0, 4)}-06-30`, href: "/tax#super", tone: "info" });
+  }
+
   // Renewals in the next 30 days (yearly recurring rego / insurance and anything else yearly)
   for (const r of p.recurring.filter((x) => x.frequency === "yearly")) {
     const n = nextDue(r.start_date, r.frequency, today, r.end_date);
@@ -81,6 +87,8 @@ export function calendarIcs(p: { today: string; recurring: { description: string
     const n = nextDue(r.start_date, r.frequency, p.today, r.end_date);
     if (n) allDay(`renew-${r.description}-${n}`, n, `${r.description} renews`, "Kerbside recurring expense.", "RRULE:FREQ=YEARLY");
   }
+  const sy = p.today.slice(5) <= "06-01" ? p.today.slice(0, 4) : String(Number(p.today.slice(0, 4)) + 1);
+  allDay("super-topup", `${sy}-06-01`, "Super top-up: 30 June deadline", "Kerbside: deductible super contributions must reach your fund by 30 June. Lodge a notice of intent before your tax return.", "RRULE:FREQ=YEARLY");
   // Weekly prompt, Mondays 9am local time
   const mon = addDays(mondayOf(p.today), 7);
   ev.push([

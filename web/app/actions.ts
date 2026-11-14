@@ -239,3 +239,11 @@ export async function addFuel(f: FormData) {
   check((await supabase.from("fuel_fills").insert({ date, odometer: Math.round(Number(str(f, "odometer"))), litres: Number(str(f, "litres")), cost, expense_id })).error);
   done();
 }
+
+export async function setCarMethod(f: FormData) {
+  const { supabase } = await requireUser();
+  const m = str(f, "car_method");
+  if (m !== "logbook" && m !== "cpk") throw new Error("Unknown method");
+  check((await supabase.from("years").update({ car_method: m }).eq("fy", str(f, "fy"))).error);
+  done();
+}

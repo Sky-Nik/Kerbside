@@ -1,8 +1,9 @@
 import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear, loadYearData } from "@/lib/data";
-import { summarise } from "@/lib/tax";
+import { marginalRate, SG_RATE, summarise, SUPER_CAP } from "@/lib/tax";
 import { aud, kmFmt, pct } from "@/lib/fmt";
-import { saveTaxInputs } from "@/app/actions";
+import { saveTaxInputs, setCarMethod } from "@/app/actions";
+import { Icon } from "@/components/Icon";
 import { PageHead } from "@/components/QuarterTabs";
 import { Tip } from "@/components/Tip";
 import type { HelpKey } from "@/lib/help";
@@ -38,6 +39,13 @@ export default async function Tax() {
   const t = s.tax;
   const e = s.estimate;
   const cpk = year.car_method === "cpk";
+  // Automatic method choice: suggest the other method when it gives a bigger deduction
+  const other = cpk ? t.logbookTotal : t.cpkTotal;
+  const better = other - t.carClaim >= 1 && (cpk || t.cpkKm > 0) ? (cpk ? "logbook" : "cpk") : null;
+  const gain = other - t.carClaim;
+  // Super: deductible personal contributions
+  const superRate = Math.max(0, marginalRate(e.taxable, fy) - 0.15);
+  const capRoom = Math.max(0, (SUPER_CAP[fy] ?? SUPER_CAP["2026-27"]) - SG_RATE * Number(year.wages || 0));
 
   return (
     <main>
@@ -80,6 +88,17 @@ export default async function Tax() {
         </p>
       </section>
 
+      {better && (
+        <form action={setCarMethod} className="card rise rise-2 mb-6 flex flex-wrap items-center gap-4">
+          <input type="hidden" name="fy" value={fy} /><input type="hidden" name="car_method" value={better} />
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-black text-white"><Icon name="car" size={20} /></span>
+          <p className="min-w-0 flex-1"><b className="block">{better === "cpk" ? "Cents per km" : "The logbook method"} gives you {aud(gain)} more</b>
+            <span className="text-sm text-mute">{better === "cpk" ? `${kmFmt(t.cpkKm)} km × ${aud(year.cpk_rate)} = ${aud(t.cpkTotal)} vs logbook ${aud(t.logbookTotal)}. No receipts needed for car costs, but it’s capped at 5,000 km.`
+              : `Logbook ${aud(t.logbookTotal)} vs cents per km ${aud(t.cpkTotal)}. You need a 12-week logbook and receipts for car costs.`}</span></p>
+          <button className="btn">Switch method</button>
+        </form>
+      )}
+
       <div className="rise rise-2 grid gap-4 lg:grid-cols-2">
         <Group title="Income" total={t.income}>
           <Row label="Rideshare, delivery & ABN income" value={t.businessIncome} />
@@ -101,6 +120,20 @@ export default async function Tax() {
         {t.feesTotal !== 0 && <Group title="Platform fees" total={t.feesTotal}><Lines lines={t.feeLines} /></Group>}
         <Group title="Other business expenses" total={t.otherTotal}><Lines lines={t.otherLines} /></Group>
       </div>
+
+      <section id="super" className="card rise rise-3 mt-8 scroll-mt-24">
+        <h2 className="h2 flex items-center gap-2">Super<Tip k="super" align="left" /></h2>
+        <p className="muted mb-4">Nobody pays super on rideshare or delivery income, so it’s up to you. Personal contributions can be claimed as a tax deduction.</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="card-wash py-4"><p className="text-xs text-mute">Tax saved per $1,000 you put in</p><p className="mt-1 text-xl font-bold tabular-nums">{aud(superRate * 1000)}</p></div>
+          <div className="card-wash py-4"><p className="text-xs text-mute">Room under the {aud(SUPER_CAP[fy] ?? SUPER_CAP["2026-27"])} cap</p><p className="mt-1 text-xl font-bold tabular-nums">{aud(capRoom)}</p></div>
+          <div className="card-wash py-4"><p className="text-xs text-mute">Deadline</p><p className="mt-1 text-xl font-bold">30 June {fy.slice(0, 2)}{fy.slice(5)}</p></div>
+        </div>
+        <p className="muted mt-3">{superRate > 0
+          ? "The fund must receive the money by 30 June. Then send your fund a notice of intent to claim a deduction and wait for its reply before you lodge. Add the amount to Other deductions below."
+          : "At your income, a deductible contribution saves little or no tax (the fund pays 15% on it). Look at an after-tax contribution instead: you may get the government co-contribution."}
+          {Number(year.wages) > 0 && " Cap room allows for 12% employer super on your wages."}</p>
+      </section>
 
       <form action={saveTaxInputs} className="card rise rise-3 mt-8 space-y-6">
         <input type="hidden" name="fy" value={fy} />
@@ -126,14 +159,14 @@ export default async function Tax() {
         </div>
         <div className="grid gap-6 border-t border-wash-2 pt-6 lg:grid-cols-[1fr_300px]">
           <div>
-            <h3 className="flex items-center gap-2 font-bold">Car depreciation <span className="font-normal text-mute">· diminishing value</span><Tip k="depreciation" align="left" /></h3>
+            <h3 className="flex items-center gap-2 font-bold">Car depreciation <span className="font-normal text-mute">· {t.dep.writeOff ? "instant asset write-off" : "diminishing value"}</span><Tip k="depreciation" align="left" /></h3>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="field">Car cost incl on-road<input name="car_cost" type="number" step="0.01" defaultValue={year.car_cost || ""} placeholder="0.00" /></label>
               <label className="field"><span className="flex items-center gap-1.5">Opening value this year<Tip k="openingValue" /></span><input name="opening_value" type="number" step="0.01" defaultValue={year.opening_value || ""} placeholder="0.00" /></label>
               <label className="field">Days owned this year<input name="days_owned" type="number" min="0" max="366" defaultValue={year.days_owned} /></label>
               <label className="field">Effective life (years)<input name="effective_life" type="number" min="1" defaultValue={year.effective_life} /></label>
             </div>
-            <p className="muted mt-2">Opening value = cost base if bought this year ({aud(t.dep.costBase)}), otherwise last year’s closing value. ATO effective life for cars is 8 years.</p>
+            <p className="muted mt-2">Opening value = cost base if bought this year ({aud(t.dep.costBase)}), otherwise last year’s closing value. ATO effective life for cars is 8 years.{t.dep.writeOff && " Your car cost under $20,000 and was first used this year, so its business share is written off in full now (instant asset write-off)."}</p>
           </div>
           <dl className="self-start rounded-2xl bg-wash p-4">
             <div className="kv"><dt>GST claimed on car</dt><dd>{aud(t.dep.carGstClaimed)}</dd></div>

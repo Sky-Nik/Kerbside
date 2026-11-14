@@ -167,3 +167,14 @@ test("set aside: GST owed plus tax at the projected marginal rate", () => {
   const s = setAside({ gstOnSales: 100, gstCredits: 20, profitExGst: 800, projectedTaxable: 60000, fy: "2026-27" });
   assert.deepEqual(s, { gst: 80, tax: 256, rate: 0.32, total: 336 });
 });
+
+test("instant asset write-off: car under $20,000 first used this year", () => {
+  const empty = { incomeEntries: [], otherIncome: [], expenses: [], trips: [], carTx: [] } as unknown as Parameters<typeof summarise>[1];
+  const cheap = summarise({ ...year, gst_registered: false, car_cost: 18000, opening_value: 18000, car_start_date: "2026-10-01", days_owned: 273 }, empty);
+  assert.equal(cheap.tax.dep.writeOff, true);
+  assert.equal(cheap.tax.dep.depFull, 18000);
+  const dear = summarise({ ...year, gst_registered: false, car_cost: 28000, opening_value: 28000, car_start_date: "2026-10-01", days_owned: 273 }, empty);
+  assert.equal(dear.tax.dep.writeOff, false);
+  const oldCar = summarise({ ...year, gst_registered: false, car_cost: 18000, opening_value: 12000, car_start_date: "2025-10-01" }, empty);
+  assert.equal(oldCar.tax.dep.writeOff, false);
+});
