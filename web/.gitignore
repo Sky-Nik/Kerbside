@@ -42,3 +42,6 @@ next-env.d.ts
 
 # stray build output from first build before turbopack.root was set
 /web/
+
+.vercel
+.env*
