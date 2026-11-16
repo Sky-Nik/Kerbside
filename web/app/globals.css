@@ -3,6 +3,11 @@
 /* Design tokens: high-contrast monochrome in the style of Base Web (Uber's open-source design system). */
 @theme inline {
   --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+}
+/* Colours are variables (not inlined) so dark mode can swap them. */
+@theme {
+  --color-white: #ffffff;
+  --color-black: #000000;
   --color-ink: #000000;
   --color-ink-2: #333333;
   --color-mute: #545454;
@@ -17,8 +22,8 @@
 }
 
 body {
-  background: #ffffff;
-  color: #000;
+  background: var(--color-white);
+  color: var(--color-ink);
   font-feature-settings: "ss01", "tnum" 0;
   -webkit-font-smoothing: antialiased;
 }
@@ -89,3 +94,34 @@ body {
 /* Landing page: full-width bands inside the centred layout */
 .bleed { width: 100vw; margin-left: calc(50% - 50vw); }
 body:has(.landing) { overflow-x: clip; }
+
+/* ---------- Dark mode (html.dark, set from Settings → Appearance or the system setting) ----------
+   Surfaces go charcoal and text goes light; "inverted" chips (bg-black / bg-ink) become light-on-dark accents.
+   The top bar, the black hero cards and the landing page keep their light-mode colours. */
+html.dark {
+  color-scheme: dark;
+  --color-white: #121212;
+  --color-black: #ededed;
+  --color-ink: #ededed;
+  --color-ink-2: #cfcfcf;
+  --color-mute: #a3a3a3;
+  --color-mute-2: #8a8a8a;
+  --color-line: #2b2b2b;
+  --color-wash: #1c1c1c;
+  --color-wash-2: #262626;
+  --color-pos: #3dd68c;
+  --color-neg: #ff6b5b;
+}
+html.dark .chrome, html.dark .card-ink, html.dark .landing {
+  --color-white: #ffffff; --color-black: #000000; --color-ink: #000000; --color-ink-2: #333333; --color-mute: #545454;
+  --color-mute-2: #757575; --color-line: #e2e2e2; --color-wash: #f3f3f3; --color-wash-2: #eeeeee; --color-pos: #05944f; --color-neg: #e11900;
+  color-scheme: light;
+}
+html.dark .card-ink { box-shadow: 0 0 0 1px #2b2b2b; }
+html.dark .landing { background: #fff; color: #000; }
+/* light tinted banners → dark tints */
+html.dark .bg-\[\#fff8e6\], html.dark .bg-\[\#fff4d9\] { background-color: #2b2310; }
+html.dark .bg-\[\#fff0ee\] { background-color: #2e1614; }
+html.dark .bg-\[\#e9f7ef\] { background-color: #12261b; }
+html.dark .bg-\[\#f7f7f7\] { background-color: #1a1a1a; }
+html.dark ::selection { background: #ededed; color: #000; }

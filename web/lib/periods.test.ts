@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bucketOf, series, shift } from "./periods.ts";
+import { bucketOf, defaultWeekAt, series, shift } from "./periods.ts";
 
 test("week, month and financial-year buckets", () => {
   const w = bucketOf("week", "2026-11-15"); // a Sunday
@@ -13,4 +13,9 @@ test("week, month and financial-year buckets", () => {
   assert.deepEqual([y.key, y.start, y.end], ["2025-26", "2025-07-01", "2026-06-30"]);
   assert.equal(shift("year", y, 1).key, "2026-27");
   assert.deepEqual(series("month", bucketOf("month", "2026-11-01"), 3).map((b) => b.short), ["Sep", "Oct", "Nov"]);
+});
+
+test("dashboard opens on last week until this week has entries", () => {
+  assert.equal(defaultWeekAt("2026-11-16", ["2026-11-09"]), "2026-11-09");
+  assert.equal(defaultWeekAt("2026-11-18", ["2026-11-09", "2026-11-16"]), "2026-11-18");
 });

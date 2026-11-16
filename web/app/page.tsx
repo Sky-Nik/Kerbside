@@ -10,6 +10,8 @@ import { aud } from "@/lib/fmt";
 import { Icon } from "@/components/Icon";
 import { CategoryBars, IncomeExpenseChart } from "@/components/Charts";
 import { EarningsPanel } from "@/components/EarningsPanel";
+import { defaultWeekAt } from "@/lib/periods";
+import { FirstRun } from "@/components/FirstRun";
 import { KmDriven } from "@/components/KmDriven";
 import { loadHistory } from "@/lib/history";
 import { Tip } from "@/components/Tip";
@@ -35,6 +37,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const { count: missing } = await supabase.from("expenses").select("id", { count: "exact", head: true })
     .is("receipt_path", null).gte("date", start).lte("date", end);
   const noPct = year.pct.car.every((v) => !v);
+  const { count: tripCount } = await supabase.from("trips").select("id", { count: "exact", head: true });
   const cq = pickQuarter(undefined, fy);
   const cur = s.bas[cq];
 
@@ -59,11 +62,12 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
   const sp = await searchParams;
   const view = sp.view === "month" || sp.view === "year" ? sp.view : "week";
   const today = todayAu();
-  const at = typeof sp.at === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.at) ? sp.at : today;
   const [{ data: allEntries }, { data: allExpenses }] = await Promise.all([
     supabase.from("income_entries").select("start_date,platform,lines,fees,hours,km"),
     supabase.from("expenses").select("date,amount,category"),
   ]);
+  const at = typeof sp.at === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.at) ? sp.at
+    : view === "week" ? defaultWeekAt(today, (allEntries ?? []).map((e) => e.start_date)) : today;
   // Past years: net income from the lodged return (net business + wages; some years platforms were lodged as wages).
   // Kilometres for the km card: odometer readings if both are entered, else what's in the logbook
   const odoKm = year.odo_year_start != null && year.odo_year_end != null && year.odo_year_end > year.odo_year_start
@@ -103,6 +107,9 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           <Link href="/expenses" className="btn btn-sm"><Icon name="plus" size={16} />Add expense</Link>
         </div>
       </div>
+
+      <FirstRun s={{ car: !!(year.vehicle || year.odo_year_start != null || year.car_start_date), earnings: (allEntries ?? []).length > 0,
+        receipt: (allExpenses ?? []).length > 0, trip: (tripCount ?? 0) > 0 }} />
 
       <div className="grid gap-4 lg:grid-cols-5">
         <EarningsPanel view={view} at={at} today={today} entries={allEntries ?? []}

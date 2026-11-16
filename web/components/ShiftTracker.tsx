@@ -9,8 +9,24 @@ import { Icon } from "./Icon";
 type Shift = { date: string; odo: number; at: string; photo: string | null; car?: string };
 type Car = { id: string; name: string; lastOdo: number | null };
 const KEY = "kerbside-shift";
-// ponytail: the open shift lives in this browser only; start and end it on the same phone.
-const read = (): Shift | null => { try { return JSON.parse(localStorage.getItem(KEY) ?? "null"); } catch { return null; } };
+// The open shift is saved to your account (table open_shifts) so you can end it on any device.
+// If that table isn't there yet, it falls back to this browser.
+const local = {
+  get: (): Shift | null => { try { return JSON.parse(localStorage.getItem(KEY) ?? "null"); } catch { return null; } },
+  set: (s: Shift | null) => { try { if (s) localStorage.setItem(KEY, JSON.stringify(s)); else localStorage.removeItem(KEY); } catch {} },
+};
+async function readShift(): Promise<Shift | null> {
+  const { data, error } = await supabaseBrowser().from("open_shifts").select("date,odo,started_at,photo,vehicle_id").maybeSingle();
+  if (error) return local.get();
+  return data ? { date: data.date, odo: data.odo, at: data.started_at, photo: data.photo, car: data.vehicle_id ?? "" } : null;
+}
+async function writeShift(s: Shift | null) {
+  const sb = supabaseBrowser();
+  const { error } = s
+    ? await sb.from("open_shifts").upsert({ date: s.date, odo: s.odo, started_at: s.at, photo: s.photo, vehicle_id: s.car || null })
+    : await sb.from("open_shifts").delete().not("odo", "is", null);
+  local.set(error ? s : null);
+}
 const time = (iso: string) => new Date(iso).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" });
 
 /** Start shift / End shift: odometer (and an optional dated photo of it) at each end, saved as a rideshare trip. */
@@ -24,14 +40,17 @@ export function ShiftTracker({ cars }: { cars: Car[] }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage is only readable after mount
-  useEffect(() => { const s = read(); setShift(s); if (!s && lastOdo != null) setOdo(String(lastOdo)); }, [lastOdo]);
+  useEffect(() => {
+    let live = true;
+    readShift().then((s) => { if (!live) return; setShift(s); if (!s && lastOdo != null) setOdo(String(lastOdo)); });
+    return () => { live = false; };
+  }, [lastOdo]);
 
   async function start() {
     setBusy(true); setMsg(null);
     try {
       const s: Shift = { date: todayAu(), odo: Number(odo), at: new Date().toISOString(), photo: photo ? await uploadOdometer(photo, "start") : null, car };
-      try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {}
+      await writeShift(s);
       setShift(s); setOdo(""); setPhoto(null);
     } catch (e) { setMsg((e as Error).message); }
     setBusy(false);
@@ -51,7 +70,7 @@ export function ShiftTracker({ cars }: { cars: Car[] }) {
         photos: shift.photo || endPhoto ? [shift.photo ?? "", endPhoto ?? ""] : null,
       });
       if (error) throw new Error(error.message);
-      try { localStorage.removeItem(KEY); } catch {}
+      await writeShift(null);
       setShift(null); setPhoto(null); setOdo(String(odoEnd));
       setMsg(`Saved: ${(odoEnd - shift.odo).toLocaleString("en-AU")} km of rideshare driving.`);
       router.refresh();
@@ -59,7 +78,7 @@ export function ShiftTracker({ cars }: { cars: Car[] }) {
     setBusy(false);
   }
 
-  function cancel() { try { localStorage.removeItem(KEY); } catch {} setShift(null); }
+  async function cancel() { await writeShift(null); setShift(null); }
 
   return (
     <div>

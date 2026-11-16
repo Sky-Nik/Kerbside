@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { CATEGORIES, todayAu } from "@/lib/tax";
@@ -8,24 +8,28 @@ import { attachReceipt } from "./receipt";
 import { Icon } from "./Icon";
 import { Tip } from "./Tip";
 
-export function ExpenseForm({ min, max, defaultDate, cars = [] }: { min: string; max: string; defaultDate: string; cars?: { id: string; name: string }[] }) {
+export function ExpenseForm({ min, max, defaultDate, cars = [], initialFile = null, onSaved }: {
+  min: string; max: string; defaultDate: string; cars?: { id: string; name: string }[];
+  /** A photo already picked (the phone quick-add button): it's scanned straight away. */
+  initialFile?: File | null; onSaved?: () => void;
+}) {
   const router = useRouter();
   const form = useRef<HTMLFormElement>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(initialFile);
+  const [preview, setPreview] = useState<string | null>(() => (initialFile?.type.startsWith("image/") ? URL.createObjectURL(initialFile) : null));
 
   const [scan, setScan] = useState<string | null>(null);
 
   /** Read the receipt photo on this device (tesseract.js) and fill in what it finds. */
-  async function scanReceipt() {
-    if (!file || !form.current) return;
+  async function scanReceipt(f: File | null = file) {
+    if (!f || !form.current) return;
     setScan("Reading receipt… (the first scan downloads about 4 MB of text-recognition data)");
     try {
       const { createWorker } = await import("tesseract.js");
       const worker = await createWorker("eng");
-      const { data } = await worker.recognize(file);
+      const { data } = await worker.recognize(f);
       await worker.terminate();
       const g = parseReceipt(data.text, todayAu());
       const el = form.current.elements;
@@ -49,7 +53,11 @@ export function ExpenseForm({ min, max, defaultDate, cars = [] }: { min: string;
     setFile(f);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(f && f.type.startsWith("image/") ? URL.createObjectURL(f) : null);
+    if (f && f.type.startsWith("image/")) scanReceipt(f); // read it straight away, no extra tap
   }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect -- scan the quick-add photo once, on open
+  useEffect(() => { if (initialFile?.type.startsWith("image/")) scanReceipt(initialFile); }, []);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -76,6 +84,7 @@ export function ExpenseForm({ min, max, defaultDate, cars = [] }: { min: string;
     form.current?.reset();
     pick(null);
     router.refresh();
+    onSaved?.();
   }
 
   return (
@@ -97,7 +106,7 @@ export function ExpenseForm({ min, max, defaultDate, cars = [] }: { min: string;
         )}
       </div>
 
-      <label className={`relative flex min-h-44 cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-dashed p-4 text-center transition ${file ? "border-ink bg-white" : "border-line bg-wash hover:border-mute-2"}`}>
+      <label className={`relative order-first flex min-h-44 cursor-pointer lg:order-none flex-col items-center justify-center gap-2 overflow-hidden rounded-2xl border-2 border-dashed p-4 text-center transition ${file ? "border-ink bg-white" : "border-line bg-wash hover:border-mute-2"}`}>
         {preview ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={preview} alt="Receipt preview" className="absolute inset-0 h-full w-full object-cover opacity-90" />
@@ -113,8 +122,8 @@ export function ExpenseForm({ min, max, defaultDate, cars = [] }: { min: string;
 
       {file && file.type.startsWith("image/") && (
         <div className="flex flex-wrap items-center gap-3 lg:col-span-2">
-          <button type="button" className="btn-secondary btn-sm" onClick={scanReceipt} disabled={!!scan && scan.startsWith("Reading")}>
-            <Icon name="receipt" size={16} />Scan receipt
+          <button type="button" className="btn-secondary btn-sm" onClick={() => scanReceipt()} disabled={!!scan && scan.startsWith("Reading")}>
+            <Icon name="receipt" size={16} />Scan again
           </button>
           <Tip k="scan" />
           {scan && <span className="text-sm text-ink-2">{scan}</span>}

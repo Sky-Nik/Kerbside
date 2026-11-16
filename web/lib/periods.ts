@@ -39,3 +39,9 @@ export function series(view: View, last: Bucket, count: number): Bucket[] {
 }
 
 export const inBucket = (b: Bucket, iso: string) => iso >= b.start && iso <= b.end;
+
+/** Week to open the dashboard on: this week once it has entries, otherwise last week (so Monday isn't a blank $0). */
+export function defaultWeekAt(today: string, entryStarts: string[]): string {
+  const { start, end } = bucketOf("week", today);
+  return entryStarts.some((d) => d >= start && d <= end) ? today : addDays(today, -7);
+}

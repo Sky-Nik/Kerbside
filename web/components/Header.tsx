@@ -7,6 +7,7 @@ import { AutoSubmitSelect } from "./AutoSubmitSelect";
 import { BottomNav, TopNav } from "./Nav";
 import { Icon } from "./Icon";
 import { Logo } from "./Logo";
+import { QuickReceipt } from "./QuickReceipt";
 import { HELP, NAV_HELP } from "@/lib/help";
 
 export async function Header() {
@@ -15,7 +16,7 @@ export async function Header() {
   const fy = await getFy();
   return (
     <>
-      <header className="sticky top-0 z-30 bg-black text-white">
+      <header className="chrome sticky top-0 z-30 bg-black text-white">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
           <Link href="/" aria-label="Kerbside home"><Logo size={30} inverted hideWordOnMobile /></Link>
           <TopNav />
@@ -34,6 +35,7 @@ export async function Header() {
         </div>
       </header>
       <BottomNav />
+      <QuickReceipt />
     </>
   );
 }

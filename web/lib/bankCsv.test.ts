@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseBankCsv, reviewStatement } from "./bankCsv.ts";
+import { bankKey, parseBankCsv, reviewStatement } from "./bankCsv.ts";
 
 test("CommBank (no header) and header formats", () => {
   const cba = `14/11/2026,"-79.95","BP GLEN WAVERLEY VIC AUS Card xx1234","+1200.00"\n13/11/2026,"+512.30","UBER B.V. PAYMENT","+1279.95"\n12/11/2026,"-4.20","LINKT MELBOURNE","+767.65"`;
@@ -18,4 +18,12 @@ test("skips recorded costs, totals payouts", () => {
   assert.deepEqual(r.suggestions.map((s) => [s.description, s.category]), [["LINKT MELBOURNE", "Tolls (business tolls not reimbursed)"]]);
   assert.deepEqual(r.payouts, { Uber: 512.3, DiDi: 100 });
   assert.equal(r.from, "2026-11-10");
+});
+
+test("remembers skipped lines and flags payouts with no earnings entered", () => {
+  const rows = parseBankCsv(`14/11/2026,-79.95,BP GLEN WAVERLEY,0\n12/11/2026,-4.20,LINKT MELBOURNE,0\n16/11/2026,812.40,UBER B.V.,0\n09/11/2026,301.10,DIDI,0`);
+  const linkt = rows.find((r) => r.description.startsWith("LINKT"))!;
+  const r = reviewStatement(rows, [], [{ platform: "DiDi", start_date: "2026-11-02", end_date: "2026-11-08" }], [bankKey(linkt)]);
+  assert.deepEqual(r.suggestions.map((s) => s.description), ["BP GLEN WAVERLEY"]);
+  assert.deepEqual(r.missing.map((m) => [m.platform, m.date]), [["Uber", "2026-11-16"]]);
 });

@@ -71,16 +71,21 @@ export function parseBankCsv(text: string): BankRow[] {
 const PAYOUT = /\b(UBER|DIDI|DOORDASH|HUNGRY ?PANDA)\b/i;
 const payoutPlatform = (d: string) => (/didi/i.test(d) ? "DiDi" : /doordash/i.test(d) ? "DoorDash" : /hungry ?panda/i.test(d) ? "HungryPanda" : "Uber");
 
+/** Stable key for a statement line, used to remember lines the driver chose not to add. */
+export const bankKey = (r: BankRow) => `${r.date}|${Math.abs(r.amount).toFixed(2)}|${r.description}`;
+const addDaysIso = (iso: string, n: number) => new Date(Date.parse(iso) + n * 86400000).toISOString().slice(0, 10);
+
 export type Suggestion = BankRow & { category: string; name: string; kind: string };
 
 /** Work costs (fuel, tolls, phone, parking, car costs) in the statement with no expense of the same amount within 3 days. */
-export function reviewStatement(rows: BankRow[], recorded: { date: string; amount: number }[]) {
+export function reviewStatement(rows: BankRow[], recorded: { date: string; amount: number }[],
+  entries: { platform: string; start_date: string; end_date: string }[] = [], skipped: string[] = []) {
   const near = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b)) <= 3 * 86400000;
   const used = new Set<number>();
   const suggestions: Suggestion[] = [];
   for (const r of rows.filter((x) => x.amount < 0)) {
     const m = matchMerchant(r.description);
-    if (!m) continue;
+    if (!m || skipped.includes(bankKey(r))) continue;
     const amt = -r.amount;
     const hit = recorded.findIndex((e, i) => !used.has(i) && Math.abs(e.amount - amt) < 0.01 && near(e.date, r.date));
     if (hit >= 0) { used.add(hit); continue; }
@@ -91,6 +96,10 @@ export function reviewStatement(rows: BankRow[], recorded: { date: string; amoun
     const p = payoutPlatform(r.description);
     payouts[p] = Math.round(((payouts[p] ?? 0) + r.amount) * 100) / 100;
   }
+  // Payouts with no earnings entered for the fortnight before them (platforms pay after the week ends)
+  const missing = rows.filter((x) => x.amount > 0 && PAYOUT.test(x.description)).map((r) => ({ ...r, platform: payoutPlatform(r.description) }))
+    .filter((r) => !entries.some((e) => (e.platform === r.platform || (r.platform === "Uber" && e.platform === "Uber Eats"))
+      && e.end_date >= addDaysIso(r.date, -14) && e.start_date <= r.date));
   const dates = rows.map((r) => r.date).sort();
-  return { suggestions, payouts, from: dates[0] ?? null, to: dates.at(-1) ?? null };
+  return { suggestions, payouts, missing, from: dates[0] ?? null, to: dates.at(-1) ?? null };
 }

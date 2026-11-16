@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+import { ThemePicker, type Theme } from "@/components/ThemePicker";
 import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear } from "@/lib/data";
 import { PCT_LABELS, logbook, fyRange, type PctKey } from "@/lib/tax";
@@ -33,6 +35,13 @@ export default async function Settings() {
   return (
     <main>
       <PageHead eyebrow={`FY ${fy}`} title="Settings" />
+      <section className="card rise mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="h2">Appearance</h2>
+          <p className="muted">Dark mode is easier on the eyes when you’re driving at night. Automatic follows your phone.</p>
+        </div>
+        <ThemePicker initial={(["light", "dark"].includes((await cookies()).get("theme")?.value ?? "") ? (await cookies()).get("theme")!.value : "system") as Theme} />
+      </section>
       <section className="card rise mb-6">
         <h2 className="h2 mb-4 flex items-center gap-2">Work type and platforms<Tip k="platforms" align="left" /></h2>
         <PlatformPicker
