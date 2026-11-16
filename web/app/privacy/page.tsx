@@ -24,6 +24,7 @@ export default function Privacy() {
       <ul>
         <li>Your data and files are stored with Supabase in Sydney, Australia. Files are in private storage that only your account can open.</li>
         <li>The app is hosted by Vercel. Sign-in with Google is handled by Google.</li>
+        <li>We use Google Tag Manager (Google) to measure how people find and use the site, such as page visits. It may set cookies in your browser. Your tax records, receipts and figures are not sent to it.</li>
         <li>Receipt scanning runs on your own device; receipt images aren’t sent anywhere to be read.</li>
       </ul>
       <p>Each account can only see its own records. Kerbside staff don’t look at your records except to fix a problem you ask us to help with.</p>
