@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { requireUser } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { supabaseServer } from "@/lib/supabase/server";
+import { Landing } from "@/components/landing/Landing";
 import { getFy, loadYear, loadYearData, pickQuarter, requirePlatforms } from "@/lib/data";
 import { BAS_DUE, addDays, expenseCalc, fyRange, quarterOf, summarise, todayAu } from "@/lib/tax";
 import { generateRecurring } from "@/lib/recurring";
@@ -12,10 +14,18 @@ import { KmDriven } from "@/components/KmDriven";
 import { loadHistory } from "@/lib/history";
 import { Tip } from "@/components/Tip";
 
+export const metadata: Metadata = {
+  title: "Kerbside · Tax, sorted for rideshare & delivery drivers",
+  description: "Earnings, receipts, logbook, BAS and tax return in one place, built for Australian Uber, DiDi, Uber Eats, DoorDash and HungryPanda drivers.",
+  openGraph: { title: "Kerbside · Tax, sorted. For drivers.", description: "Earnings, receipts, logbook, BAS and tax return in one place for Australian rideshare and delivery drivers.", images: ["/landing/tour-poster.webp"], type: "website" },
+};
+
 const QN = ["Jul – Sep", "Oct – Dec", "Jan – Mar", "Apr – Jun"];
 
 export default async function Dashboard({ searchParams }: PageProps<"/">) {
-  const { supabase } = await requireUser();
+  const supabase = await supabaseServer();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return <Landing />; // signed-out visitors see what Kerbside is about
   const platforms = await requirePlatforms(supabase);
   await generateRecurring(supabase, todayAu()); // add recurring expenses that have come due
   const fy = await getFy();

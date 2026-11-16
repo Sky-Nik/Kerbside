@@ -4,9 +4,9 @@ import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { Logo } from "@/components/Logo";
 
-export function Login({ initialError }: { initialError: string | null }) {
+export function Login({ initialError, initialMode = "in" }: { initialError: string | null; initialMode?: "in" | "up" }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const [mode, setMode] = useState<"in" | "up">(initialMode);
   const [msg, setMsg] = useState<string | null>(initialError);
   const [busy, setBusy] = useState(false);
 
