@@ -8,6 +8,7 @@ export const NAV_HELP: Record<string, string> = {
   "/logbook": "Odometer trips that work out how much of your driving is for work",
   "/bas": "The figures to copy into your quarterly Business Activity Statement",
   "/tax": "Your tax return figures and an estimate of your refund or bill",
+  "/insights": "Which platform pays best per hour after costs, your best weeks and months, and how you are tracking.",
   "/documents": "Lodged returns, platform summaries, reports and receipts in one place",
   "/settings": "Platforms, GST, business-use percentages and ATO rates",
 };

@@ -71,7 +71,7 @@ export function Landing() {
             <a href="#features" className="rounded-full px-3 py-1.5 hover:bg-white/10 hover:text-white">Features</a>
             <a href="#how" className="rounded-full px-3 py-1.5 hover:bg-white/10 hover:text-white">How it works</a>
             <a href="#tour" className="rounded-full px-3 py-1.5 hover:bg-white/10 hover:text-white">Watch the tour</a>
-            <a href="#faq" className="rounded-full px-3 py-1.5 hover:bg-white/10 hover:text-white">FAQ</a>
+            <a href="#faq" className="rounded-full px-3 py-1.5 hover:bg-white/10 hover:text-white">FAQ</a><Link href="/guides" className="rounded-full px-3 py-1.5 hover:bg-white/10 hover:text-white">Guides</Link>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <Link href="/login" className="rounded-full px-4 py-2 text-sm font-medium text-white/85 hover:bg-white/10">Sign in</Link>
@@ -265,7 +265,7 @@ export function Landing() {
       <footer className="flex flex-wrap items-center justify-between gap-4 py-10 text-sm text-mute">
         <span className="flex items-center gap-2 font-bold text-ink"><LogoMark size={22} />Kerbside</span>
         <span className="max-w-md text-[13px]">Kerbside gives general information and estimates, not tax advice. Check with a registered tax agent if you’re unsure.</span>
-        <span className="flex gap-4"><Link href="/privacy" className="hover:text-ink">Privacy</Link><Link href="/terms" className="hover:text-ink">Terms</Link></span>
+        <span className="flex gap-4"><Link href="/guides" className="hover:text-ink">Guides</Link><Link href="/privacy" className="hover:text-ink">Privacy</Link><Link href="/terms" className="hover:text-ink">Terms</Link></span>
       </footer>
     </div>
   );

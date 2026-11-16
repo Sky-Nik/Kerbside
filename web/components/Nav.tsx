@@ -11,6 +11,7 @@ export const NAV = [
   { href: "/logbook", label: "Logbook", icon: "car" },
   { href: "/bas", label: "BAS", icon: "bas" },
   { href: "/tax", label: "Tax", icon: "tax" },
+  { href: "/insights", label: "Insights", icon: "income" },
   { href: "/documents", label: "Documents", icon: "folder" },
   { href: "/settings", label: "Settings", icon: "gear" },
 ] as const;
@@ -35,7 +36,7 @@ export function TopNav() {
 /** Mobile/tablet: fixed bottom tab bar (the five most-used tabs). */
 export function BottomNav() {
   const path = usePathname();
-  const items = NAV.filter((n) => !["/logbook", "/settings", "/documents"].includes(n.href));
+  const items = NAV.filter((n) => !["/logbook", "/settings", "/documents", "/insights"].includes(n.href));
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
       <div className="mx-auto grid max-w-lg grid-cols-5">

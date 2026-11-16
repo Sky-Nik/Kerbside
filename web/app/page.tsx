@@ -103,6 +103,7 @@ export default async function Dashboard({ searchParams }: PageProps<"/">) {
           <h1 className="h1">Dashboard</h1>
         </div>
         <div className="flex gap-2">
+          <Link href="/insights" className="btn-secondary btn-sm">Insights</Link>
           <Link href="/income" className="btn-secondary btn-sm"><Icon name="income" size={16} />Enter income</Link>
           <Link href="/expenses" className="btn btn-sm"><Icon name="plus" size={16} />Add expense</Link>
         </div>
