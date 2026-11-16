@@ -5,13 +5,14 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 import { CATEGORIES, todayAu } from "@/lib/tax";
 import { parseReceipt } from "@/lib/receiptOcr";
 import { attachReceipt } from "./receipt";
+import { isOffline, queueExpense } from "@/lib/offlineQueue";
 import { Icon } from "./Icon";
 import { Tip } from "./Tip";
 
 export function ExpenseForm({ min, max, defaultDate, cars = [], initialFile = null, onSaved }: {
   min: string; max: string; defaultDate: string; cars?: { id: string; name: string }[];
   /** A photo already picked (the phone quick-add button): it's scanned straight away. */
-  initialFile?: File | null; onSaved?: () => void;
+  initialFile?: File | null; onSaved?: (offline: boolean) => void;
 }) {
   const router = useRouter();
   const form = useRef<HTMLFormElement>(null);
@@ -64,11 +65,20 @@ export function ExpenseForm({ min, max, defaultDate, cars = [], initialFile = nu
     const f = new FormData(e.currentTarget);
     setBusy(true);
     setMsg(null);
-    const { data, error } = await supabaseBrowser().from("expenses").insert({
-      date: f.get("date"), description: String(f.get("description") || "") || null,
-      amount: Math.round(Number(f.get("amount")) * 100) / 100, category: f.get("category"),
+    const row = {
+      date: String(f.get("date")), description: String(f.get("description") || "") || null,
+      amount: Math.round(Number(f.get("amount")) * 100) / 100, category: String(f.get("category")),
       vehicle_id: String(f.get("category") ?? "").startsWith("Car") ? String(f.get("vehicle_id") || "") || null : null,
-    }).select("id").single();
+    };
+    const saveOffline = async () => {
+      await queueExpense({ ...row, file });
+      setBusy(false); form.current?.reset(); pick(null);
+      setMsg("No signal, so it's saved on this phone. It will upload by itself when you're back online.");
+      onSaved?.(true);
+    };
+    if (!navigator.onLine) return saveOffline();
+    const { data, error } = await supabaseBrowser().from("expenses").insert(row).select("id").single();
+    if (error && isOffline(error)) return saveOffline();
     if (error) {
       setBusy(false);
       return setMsg(error.message);
@@ -84,7 +94,7 @@ export function ExpenseForm({ min, max, defaultDate, cars = [], initialFile = nu
     form.current?.reset();
     pick(null);
     router.refresh();
-    onSaved?.();
+    onSaved?.(false);
   }
 
   return (
@@ -134,7 +144,7 @@ export function ExpenseForm({ min, max, defaultDate, cars = [], initialFile = nu
         <button className="btn" disabled={busy}>{busy ? "Saving…" : <><Icon name="plus" size={18} />Add expense</>}</button>
         <span className="muted">Enter 100% of the receipt; your business-use % for the quarter is applied automatically.</span>
       </div>
-      {msg && <p className="rounded-xl bg-[#fff0ee] p-3 text-sm text-neg lg:col-span-2">{msg}</p>}
+      {msg && <p className={`rounded-xl p-3 text-sm lg:col-span-2 ${msg.startsWith("No signal") ? "bg-wash" : "bg-[#fff0ee] text-neg"}`}>{msg}</p>}
     </form>
   );
 }

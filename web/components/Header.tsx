@@ -8,6 +8,7 @@ import { BottomNav, TopNav } from "./Nav";
 import { Icon } from "./Icon";
 import { Logo } from "./Logo";
 import { QuickReceipt } from "./QuickReceipt";
+import { OfflineSync } from "./OfflineSync";
 import { HELP, NAV_HELP } from "@/lib/help";
 
 export async function Header() {
@@ -36,6 +37,7 @@ export async function Header() {
       </header>
       <BottomNav />
       <QuickReceipt />
+      <OfflineSync />
     </>
   );
 }

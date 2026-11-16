@@ -1,7 +1,8 @@
 "use client";
 import { useRef, useState } from "react";
 import { saveIncome } from "@/app/actions";
-import { INCOME_LINES, addDays } from "@/lib/tax";
+import { INCOME_LINES, addDays, todayAu } from "@/lib/tax";
+import { parseEarnings } from "@/lib/earningsOcr";
 import { Icon } from "./Icon";
 import { PlatformTile } from "./PlatformTile";
 import { netLabel, PLATFORM_INFO, type PlatformName } from "@/lib/platforms";
@@ -15,6 +16,32 @@ export function IncomeForm({ defaultFrom, platforms }: { defaultFrom: string; pl
   const [to, setTo] = useState(addDays(defaultFrom, 6));
   const [msg, setMsg] = useState<string | null>(null);
   const form = useRef<HTMLFormElement>(null);
+  const [shot, setShot] = useState<string | null>(null);
+
+  /** Read a weekly-earnings screenshot on this device and fill the form in. */
+  async function readScreenshot(file: File) {
+    setShot("Reading screenshot… (the first time downloads about 4 MB of text-recognition data)");
+    try {
+      const { createWorker } = await import("tesseract.js");
+      const worker = await createWorker("eng");
+      const { data } = await worker.recognize(file);
+      await worker.terminate();
+      const g = parseEarnings(data.text, todayAu());
+      if (g.platform && platforms.includes(g.platform)) setPlatform(g.platform);
+      if (g.from) { setFrom(g.from); setTo(g.to ?? addDays(g.from, 6)); }
+      const set = (name: string, v: number | null) => {
+        const i = form.current?.querySelector<HTMLInputElement>(`input[name="${name}"]`);
+        if (i && v != null) i.value = String(v);
+      };
+      set("line:Net fare", g.netFare); set("line:Promotions", g.promotions); set("line:Tips", g.tips);
+      set("fee:Service fees", g.serviceFee); set("hours", g.hours);
+      const found = [g.from && "dates", g.netFare != null && "fare", g.promotions != null && "promotions", g.tips != null && "tips",
+        g.serviceFee != null && "service fee", g.hours != null && "hours"].filter(Boolean);
+      setShot(found.length ? `Filled in ${found.join(", ")}${g.platform ? ` for ${g.platform}` : ""}. Check the numbers, then add.` : "Couldn’t find earnings in that screenshot. Please type them in.");
+    } catch (e) {
+      setShot(`Reading didn’t work: ${(e as Error).message}. Please type the numbers in.`);
+    }
+  }
 
   return (
     <form
@@ -42,7 +69,11 @@ export function IncomeForm({ defaultFrom, platforms }: { defaultFrom: string; pl
           </button>
         ))}
         <Tip k="platformPick" />
+        <label className="btn-secondary btn-sm ml-auto cursor-pointer"><Icon name="upload" size={16} />Read a screenshot
+          <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.currentTarget.files?.[0]; e.currentTarget.value = ""; if (f) readScreenshot(f); }} />
+        </label>
       </div>
+      {shot && <p className="-mt-2 rounded-xl bg-wash p-3 text-sm">{shot}</p>}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <label className="field"><span className="flex items-center gap-1.5">From<Tip k="fromTo" align="left" /></span>
