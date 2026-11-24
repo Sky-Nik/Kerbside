@@ -6,6 +6,7 @@ import { requireUser, supabaseServer } from "@/lib/supabase/server";
 import { getFy, loadYear } from "@/lib/data";
 import { INCOME_LINES, PLATFORMS, PCT_LABELS, daysOwned, todayAu, type PctKey } from "@/lib/tax";
 import { generateRecurring } from "@/lib/recurring";
+import { VAPID_PUBLIC_KEY } from "@/lib/vapid";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 const money = (f: FormData, k: string) => {
@@ -290,6 +291,13 @@ export async function deleteShare(f: FormData) {
 // ---------- Push reminders ----------
 export async function savePush(sub: { endpoint: string; keys: { p256dh: string; auth: string } } | null, endpoint?: string) {
   const { supabase } = await requireUser();
-  if (sub) check((await supabase.from("push_subscriptions").upsert({ endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth })).error);
-  else if (endpoint) check((await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint)).error);
+  if (sub) {
+    check((await supabase.from("push_subscriptions").upsert({ endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth })).error);
+    // Confirmation, so the driver sees reminders work on this device straight away.
+    if (process.env.VAPID_PRIVATE_KEY) {
+      const webpush = (await import("web-push")).default;
+      webpush.setVapidDetails("https://kerbside-au.vercel.app", VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+      await webpush.sendNotification(sub, JSON.stringify({ title: "Reminders are on", body: "We’ll nudge you on Mondays and before each BAS is due.", url: "/", tag: "welcome" })).catch(() => {});
+    }
+  } else if (endpoint) check((await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint)).error);
 }
