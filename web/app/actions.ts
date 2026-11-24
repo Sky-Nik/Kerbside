@@ -150,7 +150,12 @@ export async function savePlatforms(f: FormData) {
     updated_at: new Date().toISOString() })).error);
   // ATO: rideshare drivers must be registered for GST from the first trip.
   await saveYear(await getFy(), { gst_registered: types.includes("rideshare") || f.get("gst_registered") === "on" });
-  if (f.get("next") === "/") redirect("/");
+  if (f.get("next") === "/") {
+    // Onboarding: credit whoever referred this driver (cookie set by the proxy from ?ref=).
+    const jar = await cookies(), ref = jar.get("ref")?.value;
+    if (ref && /^[a-f0-9]{8}$/.test(ref)) { await supabase.rpc("claim_referral", { code: ref }); jar.delete("ref"); }
+    redirect("/");
+  }
 }
 
 // ---------- Document imports ----------
@@ -268,4 +273,23 @@ export async function endVehicle(f: FormData) {
   const { supabase } = await requireUser();
   check((await supabase.from("vehicles").update({ end_date: str(f, "end_date") || null }).eq("id", str(f, "id"))).error);
   done();
+}
+
+// ---------- Accountant links ----------
+export async function createShare(f: FormData) {
+  const { supabase } = await requireUser();
+  check((await supabase.from("shares").insert({ label: str(f, "label") || null })).error);
+  revalidatePath("/settings");
+}
+export async function deleteShare(f: FormData) {
+  const { supabase } = await requireUser();
+  check((await supabase.from("shares").delete().eq("token", str(f, "token"))).error);
+  revalidatePath("/settings");
+}
+
+// ---------- Push reminders ----------
+export async function savePush(sub: { endpoint: string; keys: { p256dh: string; auth: string } } | null, endpoint?: string) {
+  const { supabase } = await requireUser();
+  if (sub) check((await supabase.from("push_subscriptions").upsert({ endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth })).error);
+  else if (endpoint) check((await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint)).error);
 }

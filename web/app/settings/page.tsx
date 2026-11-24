@@ -4,7 +4,8 @@ import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear } from "@/lib/data";
 import { PCT_LABELS, logbook, fyRange, type PctKey } from "@/lib/tax";
 import { pct } from "@/lib/fmt";
-import { saveGoals, saveSettings } from "@/app/actions";
+import { createShare, deleteShare, saveGoals, saveSettings } from "@/app/actions";
+import { PushToggle } from "@/components/PushToggle";
 import { PageHead } from "@/components/QuarterTabs";
 import { PlatformPicker } from "@/components/PlatformPicker";
 import { DataTools } from "@/components/DataTools";
@@ -24,11 +25,14 @@ export default async function Settings() {
   const { supabase, user } = await requireUser();
   const fy = await getFy();
   const { start, end } = fyRange(fy);
-  const [{ data: profile }, year, { data: trips }] = await Promise.all([
+  const [{ data: profile }, year, { data: trips }, { data: shares }, { count: referred }] = await Promise.all([
     supabase.from("profiles").select("*").maybeSingle(),
     loadYear(supabase, fy),
     supabase.from("trips").select("odo_start,odo_end,purpose").is("vehicle_id", null).gte("date", start).lte("date", end),
+    supabase.from("shares").select("token,label,expires_at").gt("expires_at", new Date().toISOString()).order("created_at"),
+    supabase.from("referrals").select("referred", { count: "exact", head: true }),
   ]);
+  const site = "https://kerbside-au.vercel.app";
   const lb = logbook(trips ?? []);
   const toPct = (v: number) => Math.round(v * 1000) / 10;
 
@@ -118,6 +122,35 @@ export default async function Settings() {
           <button className="btn shadow-lg shadow-black/20">Save settings</button>
         </div>
       </form>
+      <section className="card rise mt-8">
+        <h2 className="h2">Reminders on this phone</h2>
+        <p className="muted mb-4">A nudge on Monday morning if last week’s earnings or receipts are missing, and a week before each BAS is due.</p>
+        <PushToggle />
+      </section>
+      <section className="card rise mt-8">
+        <h2 className="h2">Share with your accountant</h2>
+        <p className="muted mb-4">A private link to your tax summary, BAS reports and receipts. Read only, it works for 90 days, and you can turn it off here at any time.</p>
+        {(shares ?? []).map((sh) => (
+          <form key={sh.token} action={deleteShare} className="mb-3 flex flex-wrap items-end gap-3">
+            <input type="hidden" name="token" value={sh.token} />
+            <label className="field min-w-0 flex-1">{sh.label || "Accountant link"} · until {new Date(sh.expires_at).toLocaleDateString("en-AU")}
+              <input readOnly value={`${site}/share/${sh.token}`} />
+            </label>
+            <button className="btn-secondary h-11">Turn off</button>
+          </form>
+        ))}
+        <form action={createShare} className="flex flex-wrap items-end gap-3">
+          <label className="field min-w-0 flex-1">Who is it for? (optional)<input name="label" placeholder="e.g. Priya, H&R Block" /></label>
+          <button className="btn h-11">Create link</button>
+        </form>
+      </section>
+      {profile?.ref_code && (
+        <section className="card rise mt-8">
+          <h2 className="h2">Invite another driver</h2>
+          <p className="muted mb-4">Know someone doing their own BAS? Send them your link. {referred ? `${referred} driver${referred === 1 ? " has" : "s have"} joined with it so far.` : ""}</p>
+          <label className="field">Your invite link<input readOnly value={`${site}/?ref=${profile.ref_code}`} /></label>
+        </section>
+      )}
       <section className="card rise mt-8">
         <h2 className="h2 mb-4">Your data</h2>
         <DataTools fy={fy} />

@@ -16,8 +16,10 @@ export async function proxy(request: NextRequest) {
     },
   });
   const { data } = await supabase.auth.getUser();
+  const ref = request.nextUrl.searchParams.get("ref");
+  if (ref && /^[a-f0-9]{8}$/.test(ref)) response.cookies.set("ref", ref, { path: "/", maxAge: 60 * 60 * 24 * 30, sameSite: "lax" });
   const path = request.nextUrl.pathname;
-  const isPublic = path === "/" || path === "/sitemap.xml" || path === "/robots.txt" || ["/login", "/landing", "/guides", "/auth", "/forgot", "/privacy", "/terms"].some((p) => path.startsWith(p)) || path === "/manifest.webmanifest" || path === "/sw.js" || path.startsWith("/pwa-icon");
+  const isPublic = path === "/" || path === "/sitemap.xml" || path === "/robots.txt" || path === "/api/cron/reminders" || ["/login", "/landing", "/guides", "/auth", "/forgot", "/privacy", "/terms", "/share"].some((p) => path.startsWith(p)) || path === "/manifest.webmanifest" || path === "/sw.js" || path.startsWith("/pwa-icon");
   if (!data.user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
