@@ -124,7 +124,7 @@ export default async function Settings() {
       </form>
       <section className="card rise mt-8">
         <h2 className="h2">Reminders on this phone</h2>
-        <p className="muted mb-4">A nudge on Monday morning if last week’s earnings or receipts are missing, and a week before each BAS is due.</p>
+        <p className="muted mb-4">Around 9am: if a shift is still open, if your logbook has gone quiet, if you haven’t added a fuel receipt in a while, on Mondays if last week’s earnings or receipts are missing, and a week before each BAS is due.</p>
         <PushToggle />
       </section>
       <section className="card rise mt-8">
