@@ -2,8 +2,8 @@ import { requireUser } from "@/lib/supabase/server";
 import { getFy, loadYear } from "@/lib/data";
 import { addDays, fyRange, logbook, todayAu } from "@/lib/tax";
 import { aud, auDate, kmFmt, pct } from "@/lib/fmt";
-import { addFuel, addTrip, addVehicle, deleteRow, endVehicle, saveVehicle } from "@/app/actions";
-import { fuelStats } from "@/lib/fuel";
+import { addFuel, addTrip, fillGap, addVehicle, deleteRow, endVehicle, saveVehicle } from "@/app/actions";
+import { fuelStats, unloggedGaps } from "@/lib/fuel";
 import { ShiftTracker } from "@/components/ShiftTracker";
 import { PageHead } from "@/components/QuarterTabs";
 import { PlatformTile } from "@/components/PlatformTile";
@@ -41,6 +41,7 @@ export default async function Logbook() {
   const pkm = (platformKm ?? []).map((r) => ({ ...r, km: Number(r.km) }));
   const pkmTotal = pkm.reduce((t, r) => t + r.km, 0);
   const lb = logbook(mainTrips, year.odo_year_start, year.odo_year_end);
+  const gaps = unloggedGaps(mainTrips, fillRows ?? []);
   // First trip starts from the car's starting odometer; later trips continue from the last one.
   const lastOdo = mainTrips[0]?.odo_end ?? year.odo_year_start ?? "";
   const tripMin = year.car_start_date && year.car_start_date > start ? year.car_start_date : start;
@@ -182,6 +183,26 @@ export default async function Logbook() {
         <div className="mt-5 border-t border-wash-2 pt-5"><ShiftTracker cars={[{ id: "", name: carName(null), lastOdo: lastOdo === "" ? null : Number(lastOdo) },
           ...vehicles.filter((v) => !v.end_date || v.end_date >= todayAu()).map((v) => ({ id: v.id, name: v.name, lastOdo: lastOdoOf(v.id) }))]} /></div>
       </section>
+
+      {gaps.length > 0 && (
+        <section className="card rise mt-6 ring-2 ring-amber-400/60">
+          <h2 className="h2">Driving your logbook missed</h2>
+          <p className="muted mb-4">Your fuel fill-up odometer readings show kilometres no trip covers. Tell us what they were so your logbook stays continuous.</p>
+          <ul className="divide-y divide-line">
+            {gaps.map((g) => (
+              <li key={`${g.from}-${g.to}`} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <span><b className="tabular-nums">{kmFmt(g.to - g.from)} km</b> <span className="text-mute">· {auDate(g.fromDate)}{g.toDate !== g.fromDate ? ` – ${auDate(g.toDate)}` : ""} · odometer {kmFmt(g.from)} → {kmFmt(g.to)}</span></span>
+                <form action={fillGap} className="flex gap-2">
+                  <input type="hidden" name="from" value={g.from} /><input type="hidden" name="to" value={g.to} />
+                  <input type="hidden" name="date" value={g.fromDate} /><input type="hidden" name="end_date" value={g.toDate} />
+                  <button name="purpose" value="rideshare" className="btn btn-sm">Business</button>
+                  <button name="purpose" value="private" className="btn-secondary btn-sm">Personal</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="card rise rise-3 mt-8">
         <h2 className="h2 flex items-center gap-2">Add a trip<Tip k="addTrip" align="left" /></h2>

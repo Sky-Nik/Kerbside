@@ -85,6 +85,19 @@ export async function addTrip(f: FormData) {
   done();
 }
 
+/** Logbook: mark driving found between fuel fill-up readings as business or personal (main car). */
+export async function fillGap(f: FormData) {
+  const { supabase } = await requireUser();
+  const purpose = str(f, "purpose") === "rideshare" ? "rideshare" : "private";
+  const from = Number(str(f, "from")), to = Number(str(f, "to")), date = str(f, "date"), endDate = str(f, "end_date");
+  if (!(to > from)) throw new Error("The end reading must be higher than the start.");
+  check((await supabase.from("trips").insert({
+    date, end_date: endDate > date ? endDate : null, odo_start: from, odo_end: to, purpose,
+    description: "From fuel fill-up odometer readings",
+  })).error);
+  done();
+}
+
 export async function addCarTx(f: FormData) {
   const { supabase } = await requireUser();
   const kind = str(f, "kind");

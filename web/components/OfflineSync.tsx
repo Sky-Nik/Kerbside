@@ -18,9 +18,10 @@ export function OfflineSync() {
       try {
         const items = await pendingExpenses();
         let done = 0;
-        for (const { id, file, ...row } of items) {
+        for (const { id, file, fuel, ...row } of items) {
           const { data, error } = await supabaseBrowser().from("expenses").insert(row).select("id").single();
           if (error) break; // still offline or signed out: try again later
+          if (fuel) await supabaseBrowser().from("fuel_fills").insert({ date: row.date, cost: row.amount, expense_id: data.id, ...fuel });
           if (file) await attachReceipt(data.id, file).catch(() => {});
           await dropExpense(id); done++;
         }

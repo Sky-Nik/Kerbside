@@ -13,3 +13,21 @@ test("fuel economy between fills", () => {
   assert.equal(r.rows[0].id, "b");
   assert.equal(r.rows[1].per100, null);
 });
+
+test("unloggedGaps: only gaps that touch a fill-up", async () => {
+  const { unloggedGaps } = await import("./fuel.ts");
+  const trips = [
+    { date: "2026-11-02", odo_start: 1000, odo_end: 1100 },
+    { date: "2026-11-03", odo_start: 1150, odo_end: 1200 }, // 1100→1150 between trips: not reported
+  ];
+  const fills = [
+    { date: "2026-11-05", odometer: 1260 }, // 1200→1260 unlogged
+    { date: "2026-11-01", odometer: 1050 }, // inside a trip: covered
+    { date: "2026-11-09", odometer: 1400 }, // 1260→1400 unlogged
+  ];
+  assert.deepEqual(unloggedGaps(trips, fills), [
+    { from: 1200, to: 1260, fromDate: "2026-11-03", toDate: "2026-11-05" },
+    { from: 1260, to: 1400, fromDate: "2026-11-05", toDate: "2026-11-09" },
+  ]);
+  assert.deepEqual(unloggedGaps(trips, []), []);
+});

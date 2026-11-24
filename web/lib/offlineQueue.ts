@@ -1,5 +1,8 @@
 // Receipts saved with no signal wait here (IndexedDB on this device) until the phone is back online.
-export type QueuedExpense = { id: string; date: string; amount: number; category: string; description: string | null; vehicle_id: string | null; file: File | null };
+export type QueuedExpense = { id: string; date: string; amount: number; category: string; description: string | null; vehicle_id: string | null; file: File | null;
+  /** Fuel receipts: odometer and litres at the pump, saved to the fuel tracker and logbook too. */
+  fuel?: Fuel | null };
+export type Fuel = { odometer: number; litres: number };
 
 const DB = "kerbside", STORE = "pending-expenses";
 function open(): Promise<IDBDatabase> {

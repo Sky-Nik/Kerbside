@@ -22,6 +22,11 @@ export function ExpenseForm({ min, max, defaultDate, cars = [], initialFile = nu
   const [preview, setPreview] = useState<string | null>(() => (initialFile?.type.startsWith("image/") ? URL.createObjectURL(initialFile) : null));
 
   const [scan, setScan] = useState<string | null>(null);
+  const [category, setCategory] = useState("");
+  const [odo, setOdo] = useState("");
+  const [car, setCar] = useState(cars[0]?.id ?? "");
+  // Fuel for the main car: odometer at the pump goes to the fuel tracker and fills logbook gaps.
+  const askOdo = category === "Car - Fuel" && !car;
 
   /** Read the receipt photo on this device (tesseract.js) and fill in what it finds. */
   async function scanReceipt(f: File | null = file) {
@@ -37,7 +42,7 @@ export function ExpenseForm({ min, max, defaultDate, cars = [], initialFile = nu
       const set = (name: string, v: string | null) => { const i = el.namedItem(name) as HTMLInputElement | HTMLSelectElement | null; if (i && v) i.value = v; };
       set("amount", g.total != null ? g.total.toFixed(2) : null);
       set("description", g.supplier);
-      set("category", g.category);
+      if (g.category) setCategory(g.category);
       const outOfRange = g.date && (g.date < min || g.date > max);
       if (!outOfRange) set("date", g.date);
       const found = [g.total != null && "total", g.date && "date", g.supplier && "supplier", g.category && "category"].filter(Boolean);
@@ -70,9 +75,11 @@ export function ExpenseForm({ min, max, defaultDate, cars = [], initialFile = nu
       amount: Math.round(Number(f.get("amount")) * 100) / 100, category: String(f.get("category")),
       vehicle_id: String(f.get("category") ?? "").startsWith("Car") ? String(f.get("vehicle_id") || "") || null : null,
     };
+    const odo = String(f.get("odometer") ?? ""), litres = String(f.get("litres") ?? "");
+    const fuel = askOdo && odo ? { odometer: Math.round(Number(odo)), litres: Number(litres) } : null;
     const saveOffline = async () => {
-      await queueExpense({ ...row, file });
-      setBusy(false); form.current?.reset(); pick(null);
+      await queueExpense({ ...row, file, fuel });
+      setBusy(false); form.current?.reset(); pick(null); setCategory(""); setOdo("");
       setMsg("No signal, so it's saved on this phone. It will upload by itself when you're back online.");
       onSaved?.(true);
     };
@@ -83,6 +90,10 @@ export function ExpenseForm({ min, max, defaultDate, cars = [], initialFile = nu
       setBusy(false);
       return setMsg(error.message);
     }
+    if (fuel) {
+      const r = await supabaseBrowser().from("fuel_fills").insert({ date: row.date, cost: row.amount, expense_id: data.id, ...fuel });
+      if (r.error) setMsg(`Expense saved, but the odometer reading wasn't: ${r.error.message}. Add it in Logbook → Fuel tracker.`);
+    }
     if (file) {
       try {
         await attachReceipt(data.id, file);
@@ -92,7 +103,7 @@ export function ExpenseForm({ min, max, defaultDate, cars = [], initialFile = nu
     }
     setBusy(false);
     form.current?.reset();
-    pick(null);
+    pick(null); setCategory(""); setOdo("");
     router.refresh();
     onSaved?.(false);
   }
@@ -104,14 +115,21 @@ export function ExpenseForm({ min, max, defaultDate, cars = [], initialFile = nu
         <label className="field">Receipt total incl GST<input name="amount" type="number" step="0.01" inputMode="decimal" required placeholder="0.00" /></label>
         <label className="field sm:col-span-2">Supplier / description<input name="description" placeholder="e.g. Ampol fuel" /></label>
         <label className="field sm:col-span-2"><span className="flex items-center gap-1.5">Category<Tip k="category" align="left" /></span>
-          <select name="category" required defaultValue="">
+          <select name="category" required value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="" disabled>Choose a category</option>
             {CATEGORIES.map((c) => <option key={c.name}>{c.name}</option>)}
           </select>
         </label>
+        {askOdo && (
+          <>
+            <label className="field"><span>Odometer <span className="text-[11px] font-normal text-mute">optional · fills your logbook</span></span>
+              <input name="odometer" type="number" inputMode="numeric" min="0" step="1" placeholder="e.g. 45210" onChange={(e) => setOdo(e.target.value)} /></label>
+            <label className="field">Litres<input name="litres" type="number" inputMode="decimal" min="0.01" step="0.01" placeholder="e.g. 42.5" required={!!odo} /></label>
+          </>
+        )}
         {cars.length > 1 && (
           <label className="field sm:col-span-2"><span>Which car <span className="text-[11px] font-normal text-mute">for car costs</span></span>
-            <select name="vehicle_id" defaultValue="">{cars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+            <select name="vehicle_id" value={car} onChange={(e) => setCar(e.target.value)}>{cars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
           </label>
         )}
       </div>
