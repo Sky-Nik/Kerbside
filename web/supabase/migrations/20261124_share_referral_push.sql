@@ -54,3 +54,6 @@ create table public.push_subscriptions (
 alter table public.push_subscriptions enable row level security;
 create policy "own rows" on public.push_subscriptions for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Signed-in drivers only (Supabase grants anon execute by default).
+revoke execute on function public.claim_referral(text) from anon;
