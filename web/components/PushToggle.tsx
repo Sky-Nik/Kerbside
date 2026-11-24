@@ -8,6 +8,7 @@ const key = () => Uint8Array.from(atob(VAPID_PUBLIC_KEY.replace(/-/g, "+").repla
 /** Turns phone/browser notifications on or off for this device. */
 export function PushToggle() {
   const [state, setState] = useState<"loading" | "on" | "off" | "blocked" | "unsupported">("loading");
+  const [error, setError] = useState("");
   useEffect(() => {
     (async () => {
       if (!("serviceWorker" in navigator) || !("PushManager" in window)) return setState("unsupported");
@@ -17,6 +18,10 @@ export function PushToggle() {
   }, []);
 
   async function toggle() {
+    setError("");
+    try { await run(); } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  }
+  async function run() {
     const reg = await navigator.serviceWorker.ready;
     const existing = await reg.pushManager.getSubscription();
     if (existing) {
@@ -33,8 +38,11 @@ export function PushToggle() {
   if (state === "unsupported") return <p className="muted">This browser can’t show notifications. On iPhone, add Kerbside to your home screen first (Share → Add to Home Screen), then open it from there.</p>;
   if (state === "blocked") return <p className="muted">Notifications are blocked for Kerbside. Allow them in your browser’s site settings, then come back.</p>;
   return (
+    <>
     <button type="button" onClick={toggle} disabled={state === "loading"} className={state === "on" ? "btn-secondary" : "btn"}>
-      {state === "on" ? "Turn off on this device" : "Turn on reminders"}
+      {state === "loading" ? "Checking…" : state === "on" ? "Turn off on this device" : "Turn on reminders"}
     </button>
+    {error && <p className="mt-3 text-sm text-red-600">Couldn’t turn on reminders: {error}</p>}
+    </>
   );
 }
